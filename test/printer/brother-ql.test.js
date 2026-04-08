@@ -36,25 +36,25 @@ describe('toMonochromeBitmap', () => {
 });
 
 describe('encodeLabel', () => {
-  it('starts with invalidate sequence (200 zero bytes)', () => {
+  it('starts with invalidate sequence (400 zero bytes for QL-820NWBc)', () => {
     const bytesPerRow = Math.ceil(PRINT_WIDTH_DOTS / 8);
     const bitmap = Buffer.alloc(bytesPerRow * PRINT_HEIGHT_DOTS, 0);
     const encoded = encodeLabel(bitmap);
 
-    // 最初の200バイトが0x00
-    for (let i = 0; i < 200; i++) {
+    // QL-820NWBcは2色対応モデルのため400バイト
+    for (let i = 0; i < 400; i++) {
       expect(encoded[i]).toBe(0x00);
     }
   });
 
-  it('contains ESC @ initialize command', () => {
+  it('contains ESC @ initialize command after invalidate', () => {
     const bytesPerRow = Math.ceil(PRINT_WIDTH_DOTS / 8);
     const bitmap = Buffer.alloc(bytesPerRow * PRINT_HEIGHT_DOTS, 0);
     const encoded = encodeLabel(bitmap);
 
-    // 200バイト目以降にESC @ (0x1b 0x40)がある
-    expect(encoded[200]).toBe(0x1b);
-    expect(encoded[201]).toBe(0x40);
+    // 400バイト目以降にESC @ (0x1b 0x40)
+    expect(encoded[400]).toBe(0x1b);
+    expect(encoded[401]).toBe(0x40);
   });
 
   it('contains raster mode switch command', () => {
@@ -63,10 +63,26 @@ describe('encodeLabel', () => {
     const encoded = encodeLabel(bitmap);
 
     // ESC i a 1 (0x1b 0x69 0x61 0x01)
-    expect(encoded[202]).toBe(0x1b);
-    expect(encoded[203]).toBe(0x69);
-    expect(encoded[204]).toBe(0x61);
-    expect(encoded[205]).toBe(0x01);
+    expect(encoded[402]).toBe(0x1b);
+    expect(encoded[403]).toBe(0x69);
+    expect(encoded[404]).toBe(0x61);
+    expect(encoded[405]).toBe(0x01);
+  });
+
+  it('contains correct media info flags (0x8E)', () => {
+    const bytesPerRow = Math.ceil(PRINT_WIDTH_DOTS / 8);
+    const bitmap = Buffer.alloc(bytesPerRow * PRINT_HEIGHT_DOTS, 0);
+    const encoded = encodeLabel(bitmap);
+
+    // ESC i z の後のflags byte
+    // 406: 0x1b, 407: 0x69, 408: 0x7a, 409: flags
+    expect(encoded[406]).toBe(0x1b);
+    expect(encoded[407]).toBe(0x69);
+    expect(encoded[408]).toBe(0x7a);
+    expect(encoded[409]).toBe(0x8e); // PI_QUALITY | PI_LENGTH | PI_WIDTH | PI_KIND
+    expect(encoded[410]).toBe(0x0b); // die-cut
+    expect(encoded[411]).toBe(0x1d); // 29mm
+    expect(encoded[412]).toBe(0x3e); // 62mm
   });
 
   it('ends with print command 0x1A', () => {

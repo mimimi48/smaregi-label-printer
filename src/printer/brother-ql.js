@@ -3,7 +3,7 @@
  *
  * 参考: Brother QL Raster Command Reference
  * プロトコル概要:
- *   1. Invalidate (0x00 × 200)
+ *   1. Invalidate (0x00 × 400 — QL-800系は2色対応のため400バイト必要)
  *   2. Initialize (ESC @)
  *   3. Switch to raster mode
  *   4. Media/quality info
@@ -27,8 +27,9 @@ export function encodeLabel(bitmapData, options = {}) {
   const { autoCut = true, copies = 1 } = options;
   const buffers = [];
 
-  // 1. Invalidate — 200バイトの0x00でプリンターの状態をリセット
-  buffers.push(Buffer.alloc(200, 0x00));
+  // 1. Invalidate — 400バイトの0x00でプリンターの状態をリセット
+  // QL-820NWBcは2色対応モデルのため400バイト必要（参考: pklaus/brother_ql）
+  buffers.push(Buffer.alloc(400, 0x00));
 
   // 2. Initialize — ESC @
   buffers.push(Buffer.from([0x1b, 0x40]));
@@ -40,7 +41,7 @@ export function encodeLabel(bitmapData, options = {}) {
   // DK-1209: 29mm × 62mm ダイカットラベル
   buffers.push(Buffer.from([
     0x1b, 0x69, 0x7a,
-    0x86,       // Valid flags: PI_KIND | PI_WIDTH | PI_LENGTH | PI_QUALITY
+    0x8e,       // Valid flags: PI_QUALITY(0x80) | PI_LENGTH(0x08) | PI_WIDTH(0x04) | PI_KIND(0x02)
     0x0b,       // Media type: die-cut label
     0x1d,       // Label width: 29mm
     0x3e,       // Label length: 62mm

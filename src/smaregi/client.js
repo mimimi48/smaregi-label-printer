@@ -21,9 +21,13 @@ export async function searchProducts(query, options = {}) {
     page: String(page),
   });
 
-  // キーワード検索（商品名）
+  // 数字のみならJANコード検索、それ以外は商品名検索
   if (query) {
-    params.set('product_name', query);
+    if (/^\d+$/.test(query)) {
+      params.set('group_code', query);
+    } else {
+      params.set('product_name', query);
+    }
   }
 
   const url = `${API_BASE}/${contractId}/pos/products?${params}`;

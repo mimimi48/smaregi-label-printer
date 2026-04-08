@@ -1,6 +1,20 @@
 import sharp from 'sharp';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import { dirname, join } from 'node:path';
 import { generateBarcode } from './barcode.js';
 import { PRINT_WIDTH_DOTS, PRINT_HEIGHT_DOTS, LAYOUT } from './constants.js';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const FONT_PATH = join(__dirname, '../../fonts/NotoSansJP-Bold.ttf');
+
+// フォントをBase64エンコードしてSVG内で使用
+let fontBase64 = '';
+try {
+  fontBase64 = readFileSync(FONT_PATH).toString('base64');
+} catch {
+  // フォントが見つからない場合はシステムフォントにフォールバック
+}
 
 /**
  * 商品名とJANコードからラベル画像を生成
@@ -103,13 +117,19 @@ function createTextSvg(text, fontSize) {
   const lineHeight = fontSize * 1.3;
   const totalHeight = Math.ceil(lines.length * lineHeight + fontSize * 0.3);
 
+  const fontFamily = fontBase64 ? 'NotoSansJP' : "sans-serif, 'Hiragino Sans', 'Noto Sans JP'";
+  const fontFace = fontBase64
+    ? `<defs><style>@font-face { font-family: 'NotoSansJP'; src: url('data:font/ttf;base64,${fontBase64}') format('truetype'); font-weight: bold; }</style></defs>`
+    : '';
+
   const textElements = lines.map((line, i) => {
     const y = fontSize + i * lineHeight;
     const escaped = escapeXml(line);
-    return `<text x="0" y="${y}" font-size="${fontSize}" font-family="sans-serif, 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Noto Sans JP', 'Yu Gothic', sans-serif" fill="black">${escaped}</text>`;
+    return `<text x="0" y="${y}" font-size="${fontSize}" font-family="${fontFamily}" font-weight="bold" fill="black">${escaped}</text>`;
   }).join('\n');
 
   return `<svg width="${maxWidth}" height="${totalHeight}" xmlns="http://www.w3.org/2000/svg">
+    ${fontFace}
     ${textElements}
   </svg>`;
 }

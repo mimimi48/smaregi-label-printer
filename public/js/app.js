@@ -6,6 +6,7 @@ let queue = [];
 let searchPage = 1;
 let searchQuery = '';
 let searching = false;
+let printerOnline = false;
 
 // ── DOM ──
 
@@ -39,6 +40,54 @@ $$('.nav-btn').forEach((btn) => {
     btn.classList.add('active');
   });
 });
+
+// ── Barcode Scanner ──
+
+const scanBtn = $('#scanBtn');
+const scannerContainer = $('#scannerContainer');
+const closeScannerBtn = $('#closeScannerBtn');
+let html5QrCode = null;
+
+scanBtn.addEventListener('click', async () => {
+  if (scannerContainer.hidden) {
+    scannerContainer.hidden = false;
+    if (!html5QrCode) {
+      html5QrCode = new Html5Qrcode('scanner');
+    }
+    try {
+      await html5QrCode.start(
+        { facingMode: 'environment' },
+        { fps: 10, qrbox: { width: 250, height: 100 } },
+        onScanSuccess
+      );
+    } catch (err) {
+      showToast('カメラを起動できません', true);
+      scannerContainer.hidden = true;
+    }
+  } else {
+    stopScanner();
+  }
+});
+
+closeScannerBtn.addEventListener('click', stopScanner);
+
+async function stopScanner() {
+  if (html5QrCode) {
+    try { await html5QrCode.stop(); } catch { /* already stopped */ }
+  }
+  scannerContainer.hidden = true;
+}
+
+async function onScanSuccess(decodedText) {
+  await stopScanner();
+  // スキャンしたコードで検索
+  searchInput.value = decodedText;
+  searchQuery = decodedText;
+  searchPage = 1;
+  productList.innerHTML = '';
+  performSearch();
+  vibrate([100]);
+}
 
 // ── Search ──
 
@@ -205,6 +254,7 @@ function renderQueue() {
 }
 
 clearQueueBtn.addEventListener('click', () => {
+  if (queue.length >= 3 && !confirm(`${queue.length}件の商品をすべて削除しますか？`)) return;
   queue = [];
   renderQueue();
 });
@@ -213,6 +263,10 @@ clearQueueBtn.addEventListener('click', () => {
 
 printAllBtn.addEventListener('click', async () => {
   if (queue.length === 0) return;
+  if (!printerOnline) {
+    showToast('プリンターがオフラインです', true);
+    return;
+  }
 
   printingOverlay.hidden = false;
   const total = queue.reduce((sum, item) => sum + item.quantity, 0);
@@ -222,14 +276,17 @@ printAllBtn.addEventListener('click', async () => {
     const result = await printLabels(queue);
 
     if (result.failed > 0) {
-      showToast(`${result.printed}枚印刷 / ${result.failed}件エラー`);
+      showToast(`${result.printed}枚印刷 / ${result.failed}件エラー`, true);
     } else {
       showToast(`${result.printed}枚の印刷が完了しました`);
+      vibrate([100]);
+      saveToHistory(queue);
       queue = [];
       renderQueue();
     }
   } catch (err) {
-    showToast(`印刷エラー: ${err.message}`);
+    showToast(`印刷エラー: ${err.message}`, true);
+    vibrate([200, 100, 200]);
   } finally {
     printingOverlay.hidden = true;
   }
@@ -259,11 +316,15 @@ $('.modal-backdrop')?.addEventListener('click', () => {
 async function updatePrinterStatus() {
   try {
     const { online } = await getPrinterStatus();
+    printerOnline = online;
     printerStatus.className = `printer-status ${online ? 'online' : 'offline'}`;
     printerStatus.querySelector('.status-text').textContent = online ? 'オンライン' : 'オフライン';
+    printAllBtn.disabled = !online;
   } catch {
+    printerOnline = false;
     printerStatus.className = 'printer-status offline';
     printerStatus.querySelector('.status-text').textContent = 'オフライン';
+    printAllBtn.disabled = true;
   }
 }
 
@@ -273,17 +334,66 @@ setInterval(updatePrinterStatus, 30_000);
 
 // ── Toast ──
 
-function showToast(message) {
+let toastTimer;
+
+function showToast(message, isError = false) {
   let toast = $('.toast');
   if (!toast) {
     toast = document.createElement('div');
     toast.className = 'toast';
     document.body.appendChild(toast);
   }
+  clearTimeout(toastTimer);
   toast.textContent = message;
   toast.classList.add('show');
-  setTimeout(() => toast.classList.remove('show'), 2500);
+  toastTimer = setTimeout(() => toast.classList.remove('show'), isError ? 5000 : 2500);
 }
+
+// ── Vibration ──
+
+function vibrate(pattern) {
+  if (navigator.vibrate) {
+    navigator.vibrate(pattern);
+  }
+}
+
+// ── History (localStorage) ──
+
+const HISTORY_KEY = 'label-print-history';
+const MAX_HISTORY = 20;
+
+function saveToHistory(items) {
+  const history = getHistory();
+  for (const item of items) {
+    // 既に履歴にあれば先頭に移動
+    const idx = history.findIndex((h) => h.janCode === item.janCode);
+    if (idx !== -1) history.splice(idx, 1);
+    history.unshift({ productName: item.productName, janCode: item.janCode });
+  }
+  history.length = Math.min(history.length, MAX_HISTORY);
+  try { localStorage.setItem(HISTORY_KEY, JSON.stringify(history)); } catch { /* quota exceeded */ }
+}
+
+function getHistory() {
+  try {
+    return JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
+  } catch {
+    return [];
+  }
+}
+
+function showHistory() {
+  const history = getHistory();
+  if (history.length === 0) return;
+
+  productList.innerHTML = `<p class="section-label">最近印刷した商品</p>`;
+  history.forEach((product) => {
+    productList.appendChild(createProductCard(product));
+  });
+}
+
+// 初期表示で履歴を表示
+showHistory();
 
 // ── Utility ──
 

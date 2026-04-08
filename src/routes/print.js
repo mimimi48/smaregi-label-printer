@@ -5,6 +5,9 @@ import { sendToPrinter } from '../printer/tcp-client.js';
 
 const router = Router();
 
+const MAX_ITEMS = 20;
+const MAX_QUANTITY_PER_ITEM = 50;
+
 /**
  * POST /api/print
  * ラベルを印刷
@@ -18,12 +21,17 @@ router.post('/', async (req, res, next) => {
       return res.status(400).json({ error: '印刷する商品を指定してください' });
     }
 
+    if (items.length > MAX_ITEMS) {
+      return res.status(400).json({ error: `一度に${MAX_ITEMS}商品まで印刷できます` });
+    }
+
     const results = [];
     let printed = 0;
     let failed = 0;
 
     for (const item of items) {
-      const { productName, janCode, quantity = 1 } = item;
+      const { productName, janCode } = item;
+      const quantity = Math.min(Math.max(1, item.quantity || 1), MAX_QUANTITY_PER_ITEM);
 
       if (!productName || !janCode) {
         results.push({ productName, status: 'error', message: '商品名またはJANコードが不足' });
