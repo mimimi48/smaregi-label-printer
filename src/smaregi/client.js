@@ -1,0 +1,93 @@
+import { getAccessToken } from './auth.js';
+
+const API_BASE = 'https://api.smaregi.jp';
+
+/**
+ * スマレジから商品を検索
+ * @param {string} query - 検索キーワード
+ * @param {object} options
+ * @param {number} options.page - ページ番号 (1始まり)
+ * @param {number} options.limit - 1ページあたりの件数
+ * @returns {Promise<{products: Array, totalCount: number}>}
+ */
+export async function searchProducts(query, options = {}) {
+  const { page = 1, limit = 20 } = options;
+  const contractId = process.env.SMAREGI_CONTRACT_ID;
+
+  const token = await getAccessToken();
+
+  const params = new URLSearchParams({
+    limit: String(limit),
+    page: String(page),
+  });
+
+  // キーワード検索（商品名）
+  if (query) {
+    params.set('product_name', query);
+  }
+
+  const url = `${API_BASE}/${contractId}/pos/products?${params}`;
+
+  const res = await fetch(url, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+  });
+
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`スマレジAPI エラー (${res.status}): ${body}`);
+  }
+
+  const products = await res.json();
+
+  // レスポンスヘッダーからページネーション情報を取得
+  const totalCount = parseInt(res.headers.get('x-total-count') || '0', 10);
+
+  return {
+    products: products.map(normalizeProduct),
+    totalCount,
+  };
+}
+
+/**
+ * 商品IDで商品を取得
+ * @param {string} productId
+ * @returns {Promise<object>}
+ */
+export async function getProduct(productId) {
+  const contractId = process.env.SMAREGI_CONTRACT_ID;
+  const token = await getAccessToken();
+
+  const url = `${API_BASE}/${contractId}/pos/products/${productId}`;
+
+  const res = await fetch(url, {
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    },
+  });
+
+  if (!res.ok) {
+    const body = await res.text();
+    throw new Error(`スマレジAPI エラー (${res.status}): ${body}`);
+  }
+
+  const product = await res.json();
+  return normalizeProduct(product);
+}
+
+/**
+ * スマレジAPIレスポンスを正規化
+ */
+function normalizeProduct(raw) {
+  return {
+    productId: raw.productId,
+    productName: raw.productName || '',
+    janCode: raw.groupCode || raw.productCode || '',
+    price: raw.price || 0,
+    categoryId: raw.categoryId || '',
+    categoryName: raw.categoryName || '',
+  };
+}

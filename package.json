@@ -1,0 +1,31 @@
+{
+  "name": "smaregi-label-printer",
+  "version": "1.0.0",
+  "description": "スマレジ商品マスタ連携ラベル印刷システム（Brother QL-820NWBc対応）",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "keywords": [
+    "smaregi",
+    "brother",
+    "label",
+    "printer",
+    "ql-820nwb"
+  ],
+  "license": "UNLICENSED",
+  "private": true,
+  "dependencies": {
+    "bwip-js": "^4.9.0",
+    "dotenv": "^17.4.1",
+    "express": "^5.2.1",
+    "sharp": "^0.34.5"
+  },
+  "devDependencies": {
+    "vitest": "^3.2.4"
+  }
+}
