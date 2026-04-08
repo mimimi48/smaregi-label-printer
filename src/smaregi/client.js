@@ -1,6 +1,5 @@
 import { getAccessToken } from './auth.js';
-
-const API_BASE = 'https://api.smaregi.jp';
+import { getConfig } from '../config.js';
 
 /**
  * スマレジから商品を検索
@@ -12,7 +11,9 @@ const API_BASE = 'https://api.smaregi.jp';
  */
 export async function searchProducts(query, options = {}) {
   const { page = 1, limit = 20 } = options;
-  const contractId = process.env.SMAREGI_CONTRACT_ID;
+  const config = getConfig();
+  const contractId = config.smaregiContractId;
+  const apiBase = config.smaregiApiHost;
 
   const token = await getAccessToken();
 
@@ -30,7 +31,7 @@ export async function searchProducts(query, options = {}) {
     }
   }
 
-  const url = `${API_BASE}/${contractId}/pos/products?${params}`;
+  const url = `${apiBase}/${contractId}/pos/products?${params}`;
 
   const res = await fetch(url, {
     headers: {
@@ -61,10 +62,12 @@ export async function searchProducts(query, options = {}) {
  * @returns {Promise<object>}
  */
 export async function getProduct(productId) {
-  const contractId = process.env.SMAREGI_CONTRACT_ID;
+  const config = getConfig();
+  const contractId = config.smaregiContractId;
+  const apiBase = config.smaregiApiHost;
   const token = await getAccessToken();
 
-  const url = `${API_BASE}/${contractId}/pos/products/${productId}`;
+  const url = `${apiBase}/${contractId}/pos/products/${productId}`;
 
   const res = await fetch(url, {
     headers: {

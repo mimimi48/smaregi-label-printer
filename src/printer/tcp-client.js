@@ -1,4 +1,5 @@
 import net from 'node:net';
+import { getConfig } from '../config.js';
 
 /**
  * Brother QL プリンターにTCP 9100で印刷データを送信
@@ -10,9 +11,10 @@ import net from 'node:net';
  * @returns {Promise<void>}
  */
 export function sendToPrinter(data, options = {}) {
+  const config = getConfig();
   const {
-    host = process.env.PRINTER_IP,
-    port = Number(process.env.PRINTER_PORT) || 9100,
+    host = config.printerIp,
+    port = config.printerPort,
     timeout = 10000,
   } = options;
 
@@ -56,9 +58,10 @@ export function sendToPrinter(data, options = {}) {
  * @returns {Promise<boolean>} オンラインならtrue
  */
 export function checkPrinterStatus(options = {}) {
+  const config = getConfig();
   const {
-    host = process.env.PRINTER_IP,
-    port = Number(process.env.PRINTER_PORT) || 9100,
+    host = config.printerIp,
+    port = config.printerPort,
     timeout = 3000,
   } = options;
 

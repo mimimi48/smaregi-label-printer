@@ -3,6 +3,8 @@
  * Client Credentials Grant
  */
 
+import { getConfig } from '../config.js';
+
 let cachedToken = null;
 let tokenExpiresAt = 0;
 
@@ -16,12 +18,13 @@ export async function getAccessToken() {
     return cachedToken;
   }
 
-  const contractId = process.env.SMAREGI_CONTRACT_ID;
-  const clientId = process.env.SMAREGI_CLIENT_ID;
-  const clientSecret = process.env.SMAREGI_CLIENT_SECRET;
+  const config = getConfig();
+  const contractId = config.smaregiContractId;
+  const clientId = config.smaregiClientId;
+  const clientSecret = config.smaregiClientSecret;
 
   if (!contractId || !clientId || !clientSecret) {
-    throw new Error('スマレジAPI認証情報が設定されていません (.env を確認してください)');
+    throw new Error('スマレジAPI認証情報が設定されていません（設定画面から入力してください）');
   }
 
   const tokenUrl = 'https://id.smaregi.jp/authorize/token';

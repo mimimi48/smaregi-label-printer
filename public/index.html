@@ -66,6 +66,47 @@
       </div>
     </section>
 
+    <!-- 設定画面 -->
+    <section class="view" id="settingsView">
+      <h2 class="settings-title">設定</h2>
+
+      <div class="settings-group">
+        <h3 class="settings-group-title">プリンター</h3>
+        <label class="field">
+          <span class="field-label">プリンターIP</span>
+          <input type="text" id="settingPrinterIp" placeholder="192.168.1.100" inputmode="decimal">
+        </label>
+        <label class="field">
+          <span class="field-label">ポート</span>
+          <input type="number" id="settingPrinterPort" placeholder="9100" inputmode="numeric">
+        </label>
+        <button class="btn btn-ghost btn-sm" id="discoverPrinterBtn">プリンターを自動検出</button>
+        <div id="discoverResult" class="discover-result" hidden></div>
+      </div>
+
+      <div class="settings-group">
+        <h3 class="settings-group-title">スマレジAPI</h3>
+        <label class="field">
+          <span class="field-label">契約ID</span>
+          <input type="text" id="settingContractId" placeholder="契約ID">
+        </label>
+        <label class="field">
+          <span class="field-label">クライアントID</span>
+          <input type="text" id="settingClientId" placeholder="クライアントID">
+        </label>
+        <label class="field">
+          <span class="field-label">クライアントシークレット</span>
+          <input type="password" id="settingClientSecret" placeholder="クライアントシークレット">
+        </label>
+      </div>
+
+      <div class="settings-actions">
+        <button class="btn btn-primary btn-lg" id="saveSettingsBtn" style="width:100%">設定を保存</button>
+      </div>
+
+      <div class="settings-status" id="settingsStatus"></div>
+    </section>
+
     <!-- プレビューモーダル -->
     <div class="modal" id="previewModal" hidden>
       <div class="modal-backdrop"></div>
@@ -106,6 +147,12 @@
       </svg>
       <span>キュー</span>
       <span class="badge" id="queueBadge" hidden>0</span>
+    </button>
+    <button class="nav-btn" data-view="settingsView">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 01-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/>
+      </svg>
+      <span>設定</span>
     </button>
   </nav>
 

@@ -1,4 +1,4 @@
-import { searchProducts, printLabels, getPrinterStatus, getPreviewUrl } from './api.js';
+import { searchProducts, printLabels, getPrinterStatus, getPreviewUrl, getSettings, saveSettings, discoverPrinters } from './api.js';
 
 // ── State ──
 
@@ -356,6 +356,82 @@ function vibrate(pattern) {
     navigator.vibrate(pattern);
   }
 }
+
+// ── Settings ──
+
+const settingPrinterIp = $('#settingPrinterIp');
+const settingPrinterPort = $('#settingPrinterPort');
+const settingContractId = $('#settingContractId');
+const settingClientId = $('#settingClientId');
+const settingClientSecret = $('#settingClientSecret');
+const saveSettingsBtn = $('#saveSettingsBtn');
+const settingsStatus = $('#settingsStatus');
+const discoverPrinterBtn = $('#discoverPrinterBtn');
+const discoverResult = $('#discoverResult');
+
+async function loadSettings() {
+  try {
+    const config = await getSettings();
+    settingPrinterIp.value = config.printerIp || '';
+    settingPrinterPort.value = config.printerPort || 9100;
+    settingContractId.value = config.smaregiContractId || '';
+    settingClientId.value = config.smaregiClientId || '';
+    settingClientSecret.value = config.smaregiClientSecret || '';
+  } catch {
+    // 初回起動時はエラーになる場合がある
+  }
+}
+
+loadSettings();
+
+saveSettingsBtn.addEventListener('click', async () => {
+  saveSettingsBtn.disabled = true;
+  settingsStatus.textContent = '保存中…';
+  settingsStatus.className = 'settings-status';
+
+  try {
+    const result = await saveSettings({
+      printerIp: settingPrinterIp.value,
+      printerPort: settingPrinterPort.value,
+      smaregiContractId: settingContractId.value,
+      smaregiClientId: settingClientId.value,
+      smaregiClientSecret: settingClientSecret.value,
+    });
+
+    settingsStatus.textContent = '設定を保存しました';
+    // ステータス再チェック
+    updatePrinterStatus();
+  } catch (err) {
+    settingsStatus.textContent = `保存エラー: ${err.message}`;
+    settingsStatus.className = 'settings-status error';
+  } finally {
+    saveSettingsBtn.disabled = false;
+  }
+});
+
+discoverPrinterBtn.addEventListener('click', async () => {
+  discoverPrinterBtn.disabled = true;
+  discoverResult.hidden = false;
+  discoverResult.innerHTML = '<p>検出中… (数秒かかります)</p>';
+
+  try {
+    const { printers } = await discoverPrinters();
+    if (printers.length === 0) {
+      discoverResult.innerHTML = '<p>プリンターが見つかりません。電源とネットワーク接続を確認してください。</p>';
+    } else {
+      discoverResult.innerHTML = printers.map((p) => `
+        <div class="discover-item">
+          <span>${escapeHtml(p.ip)}${p.name ? ' (' + escapeHtml(p.name) + ')' : ''}</span>
+          <button class="btn btn-ghost btn-sm" onclick="document.getElementById('settingPrinterIp').value='${p.ip}'">選択</button>
+        </div>
+      `).join('');
+    }
+  } catch (err) {
+    discoverResult.innerHTML = `<p>検出エラー: ${escapeHtml(err.message)}</p>`;
+  } finally {
+    discoverPrinterBtn.disabled = false;
+  }
+});
 
 // ── History (localStorage) ──
 

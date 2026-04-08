@@ -37,3 +37,22 @@ export function getPreviewUrl(productName, janCode) {
   const params = new URLSearchParams({ productName, janCode });
   return `/api/preview?${params}`;
 }
+
+export async function getSettings() {
+  const res = await request('/api/settings');
+  return res.json();
+}
+
+export async function saveSettings(settings) {
+  const res = await request('/api/settings', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(settings),
+  });
+  return res.json();
+}
+
+export async function discoverPrinters() {
+  const res = await request('/api/printer/discover');
+  return res.json();
+}
