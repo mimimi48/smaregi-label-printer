@@ -430,6 +430,10 @@ body {
   justify-content: center;
 }
 
+.modal[hidden] {
+  display: none;
+}
+
 .modal-backdrop {
   position: absolute;
   inset: 0;
@@ -501,6 +505,10 @@ body {
   align-items: center;
   justify-content: center;
   background: oklch(0% 0 0 / 0.5);
+}
+
+.overlay[hidden] {
+  display: none;
 }
 
 .overlay-content {
