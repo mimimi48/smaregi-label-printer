@@ -11,8 +11,11 @@ router.get('/', async (req, res, next) => {
   try {
     const { productName, janCode } = req.query;
 
-    if (!productName || !janCode) {
-      return res.status(400).json({ error: '商品名とJANコードを指定してください' });
+    if (!productName || typeof productName !== 'string' || productName.length > 200) {
+      return res.status(400).json({ error: '商品名が無効です' });
+    }
+    if (!janCode || !/^\d{8,14}$/.test(janCode)) {
+      return res.status(400).json({ error: 'JANコードが無効です（8〜14桁の数字）' });
     }
 
     const png = await renderLabel({ productName, janCode });

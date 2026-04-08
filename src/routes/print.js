@@ -33,8 +33,13 @@ router.post('/', async (req, res, next) => {
       const { productName, janCode } = item;
       const quantity = Math.min(Math.max(1, item.quantity || 1), MAX_QUANTITY_PER_ITEM);
 
-      if (!productName || !janCode) {
-        results.push({ productName, status: 'error', message: '商品名またはJANコードが不足' });
+      if (!productName || typeof productName !== 'string' || productName.length > 200) {
+        results.push({ productName, status: 'error', message: '商品名が無効です' });
+        failed++;
+        continue;
+      }
+      if (!janCode || !/^\d{8,14}$/.test(janCode)) {
+        results.push({ productName, status: 'error', message: 'JANコードが無効です' });
         failed++;
         continue;
       }

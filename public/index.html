@@ -68,6 +68,21 @@
 
     <!-- 設定画面 -->
     <section class="view" id="settingsView">
+      <!-- PIN認証ゲート -->
+      <div id="pinGate">
+        <h2 class="settings-title">設定を表示するにはPINを入力</h2>
+        <div class="settings-group">
+          <label class="field">
+            <span class="field-label">PIN</span>
+            <input type="password" id="pinInput" placeholder="4〜8桁の数字" inputmode="numeric" maxlength="8">
+          </label>
+          <button class="btn btn-primary" id="pinSubmitBtn" style="width:100%">認証</button>
+          <p class="settings-status" id="pinError"></p>
+        </div>
+      </div>
+
+      <!-- 設定フォーム（PIN認証後に表示） -->
+      <div id="settingsForm" hidden>
       <h2 class="settings-title">設定</h2>
 
       <div class="settings-group">
@@ -100,11 +115,20 @@
         </label>
       </div>
 
+      <div class="settings-group">
+        <h3 class="settings-group-title">セキュリティ</h3>
+        <label class="field">
+          <span class="field-label">設定画面PIN（4〜8桁の数字）</span>
+          <input type="password" id="settingAppPin" placeholder="未設定の場合は認証なし" inputmode="numeric" maxlength="8">
+        </label>
+      </div>
+
       <div class="settings-actions">
         <button class="btn btn-primary btn-lg" id="saveSettingsBtn" style="width:100%">設定を保存</button>
       </div>
 
       <div class="settings-status" id="settingsStatus"></div>
+      </div><!-- /settingsForm -->
     </section>
 
     <!-- プレビューモーダル -->

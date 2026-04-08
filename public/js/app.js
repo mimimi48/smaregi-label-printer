@@ -1,4 +1,4 @@
-import { searchProducts, printLabels, getPrinterStatus, getPreviewUrl, getSettings, saveSettings, discoverPrinters } from './api.js';
+import { searchProducts, printLabels, getPrinterStatus, getPreviewUrl, getSettings, saveSettings, discoverPrinters, setStoredPin } from './api.js';
 
 // ── State ──
 
@@ -369,6 +369,13 @@ const settingsStatus = $('#settingsStatus');
 const discoverPrinterBtn = $('#discoverPrinterBtn');
 const discoverResult = $('#discoverResult');
 
+const pinGate = $('#pinGate');
+const settingsForm = $('#settingsForm');
+const pinInput = $('#pinInput');
+const pinSubmitBtn = $('#pinSubmitBtn');
+const pinError = $('#pinError');
+const settingAppPin = $('#settingAppPin');
+
 async function loadSettings() {
   try {
     const config = await getSettings();
@@ -377,10 +384,33 @@ async function loadSettings() {
     settingContractId.value = config.smaregiContractId || '';
     settingClientId.value = config.smaregiClientId || '';
     settingClientSecret.value = config.smaregiClientSecret || '';
-  } catch {
-    // 初回起動時はエラーになる場合がある
+    settingsForm.hidden = false;
+    pinGate.hidden = true;
+  } catch (err) {
+    if (err.message.includes('PIN')) {
+      // PIN認証が必要
+      pinGate.hidden = false;
+      settingsForm.hidden = true;
+    }
   }
 }
+
+pinSubmitBtn.addEventListener('click', async () => {
+  const pin = pinInput.value.trim();
+  if (!pin) return;
+  setStoredPin(pin);
+  pinError.textContent = '';
+  try {
+    await loadSettings();
+  } catch {
+    pinError.textContent = 'PINが正しくありません';
+    pinError.className = 'settings-status error';
+  }
+});
+
+pinInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') pinSubmitBtn.click();
+});
 
 loadSettings();
 
@@ -396,6 +426,7 @@ saveSettingsBtn.addEventListener('click', async () => {
       smaregiContractId: settingContractId.value,
       smaregiClientId: settingClientId.value,
       smaregiClientSecret: settingClientSecret.value,
+      appPin: settingAppPin.value || undefined,
     });
 
     settingsStatus.textContent = '設定を保存しました';
@@ -419,12 +450,22 @@ discoverPrinterBtn.addEventListener('click', async () => {
     if (printers.length === 0) {
       discoverResult.innerHTML = '<p>プリンターが見つかりません。電源とネットワーク接続を確認してください。</p>';
     } else {
-      discoverResult.innerHTML = printers.map((p) => `
-        <div class="discover-item">
-          <span>${escapeHtml(p.ip)}${p.name ? ' (' + escapeHtml(p.name) + ')' : ''}</span>
-          <button class="btn btn-ghost btn-sm" onclick="document.getElementById('settingPrinterIp').value='${p.ip}'">選択</button>
-        </div>
-      `).join('');
+      discoverResult.innerHTML = '';
+      printers.forEach((p) => {
+        const item = document.createElement('div');
+        item.className = 'discover-item';
+        const label = document.createElement('span');
+        label.textContent = p.ip + (p.name ? ` (${p.name})` : '');
+        const btn = document.createElement('button');
+        btn.className = 'btn btn-ghost btn-sm';
+        btn.textContent = '選択';
+        btn.addEventListener('click', () => {
+          settingPrinterIp.value = p.ip;
+        });
+        item.appendChild(label);
+        item.appendChild(btn);
+        discoverResult.appendChild(item);
+      });
     }
   } catch (err) {
     discoverResult.innerHTML = `<p>検出エラー: ${escapeHtml(err.message)}</p>`;

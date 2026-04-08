@@ -1,14 +1,17 @@
 import { Router } from 'express';
 import { getPublicConfig, saveConfig } from '../config.js';
 import { clearTokenCache } from '../smaregi/auth.js';
+import { requirePin } from '../middleware/auth.js';
 
 const router = Router();
+
+const ALLOWED_API_HOSTS = ['https://api.smaregi.jp', 'https://api.smaregi.dev'];
 
 /**
  * GET /api/settings
  * 現在の設定を取得（シークレットはマスク済み）
  */
-router.get('/', (req, res) => {
+router.get('/', requirePin, (req, res) => {
   res.json(getPublicConfig());
 });
 
@@ -16,21 +19,55 @@ router.get('/', (req, res) => {
  * POST /api/settings
  * 設定を更新
  */
-router.post('/', (req, res, next) => {
+router.post('/', requirePin, (req, res, next) => {
   try {
-    const { smaregiContractId, smaregiClientId, smaregiClientSecret, smaregiApiHost, printerIp, printerPort } = req.body;
+    const { smaregiContractId, smaregiClientId, smaregiClientSecret, smaregiApiHost, printerIp, printerPort, appPin } = req.body;
 
     const updates = {};
 
     if (smaregiContractId !== undefined) updates.smaregiContractId = smaregiContractId.trim();
     if (smaregiClientId !== undefined) updates.smaregiClientId = smaregiClientId.trim();
+
     // マスク値でなければ更新
-    if (smaregiClientSecret !== undefined && smaregiClientSecret !== '********') {
+    if (smaregiClientSecret !== undefined && smaregiClientSecret !== '__MASKED__') {
       updates.smaregiClientSecret = smaregiClientSecret.trim();
     }
-    if (smaregiApiHost !== undefined) updates.smaregiApiHost = smaregiApiHost.trim();
-    if (printerIp !== undefined) updates.printerIp = printerIp.trim();
-    if (printerPort !== undefined) updates.printerPort = Number(printerPort) || 9100;
+
+    // APIホストは許可リストのみ
+    if (smaregiApiHost !== undefined) {
+      const trimmed = smaregiApiHost.trim();
+      if (!ALLOWED_API_HOSTS.includes(trimmed)) {
+        return res.status(400).json({ error: `APIホストは ${ALLOWED_API_HOSTS.join(' または ')} のみ指定可能です` });
+      }
+      updates.smaregiApiHost = trimmed;
+    }
+
+    // プリンターIPはプライベートLANアドレスのみ
+    if (printerIp !== undefined) {
+      const trimmedIp = printerIp.trim();
+      if (trimmedIp && !isPrivateLanIp(trimmedIp)) {
+        return res.status(400).json({ error: 'プリンターIPはプライベートネットワークアドレスのみ指定可能です' });
+      }
+      updates.printerIp = trimmedIp;
+    }
+
+    // ポートは9100-9109の範囲のみ
+    if (printerPort !== undefined) {
+      const port = Number(printerPort);
+      if (!Number.isInteger(port) || port < 9100 || port > 9109) {
+        return res.status(400).json({ error: 'プリンターポートは9100〜9109の範囲で指定してください' });
+      }
+      updates.printerPort = port;
+    }
+
+    // PIN設定（4〜8桁の数字）
+    if (appPin !== undefined) {
+      const trimmedPin = appPin.trim();
+      if (trimmedPin && !/^\d{4,8}$/.test(trimmedPin)) {
+        return res.status(400).json({ error: 'PINは4〜8桁の数字で設定してください' });
+      }
+      updates.appPin = trimmedPin;
+    }
 
     saveConfig(updates);
 
@@ -44,5 +81,13 @@ router.post('/', (req, res, next) => {
     next(err);
   }
 });
+
+/**
+ * プライベートLANアドレスの検証
+ * 192.168.x.x, 10.x.x.x, 172.16-31.x.x のみ許可
+ */
+function isPrivateLanIp(ip) {
+  return /^(192\.168\.\d{1,3}\.\d{1,3}|10\.\d{1,3}\.\d{1,3}\.\d{1,3}|172\.(1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3})$/.test(ip);
+}
 
 export default router;

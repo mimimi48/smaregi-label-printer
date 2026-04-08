@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
+import { readFileSync, writeFileSync, chmodSync, mkdirSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
@@ -14,6 +14,7 @@ const DEFAULTS = {
   printerIp: '',
   printerPort: 9100,
   port: 3000,
+  appPin: '',
 };
 
 let cached = null;
@@ -40,7 +41,9 @@ export function saveConfig(updates) {
   }
 
   writeFileSync(SETTINGS_PATH, JSON.stringify(merged, null, 2), 'utf-8');
-  cached = null; // キャッシュクリア
+  // 認証情報を含むためパーミッションを制限
+  try { chmodSync(SETTINGS_PATH, 0o600); } catch { /* Windows等では無視 */ }
+  cached = null;
 }
 
 /**
@@ -51,10 +54,11 @@ export function getPublicConfig() {
   return {
     smaregiContractId: config.smaregiContractId,
     smaregiClientId: config.smaregiClientId,
-    smaregiClientSecret: config.smaregiClientSecret ? '********' : '',
+    smaregiClientSecret: config.smaregiClientSecret ? '__MASKED__' : '',
     smaregiApiHost: config.smaregiApiHost,
     printerIp: config.printerIp,
     printerPort: config.printerPort,
+    pinConfigured: !!config.appPin,
     configured: !!(config.smaregiContractId && config.smaregiClientId && config.smaregiClientSecret && config.printerIp),
   };
 }
@@ -69,6 +73,7 @@ function loadConfig() {
     printerIp: file.printerIp || process.env.PRINTER_IP || DEFAULTS.printerIp,
     printerPort: file.printerPort || Number(process.env.PRINTER_PORT) || DEFAULTS.printerPort,
     port: Number(process.env.PORT) || DEFAULTS.port,
+    appPin: file.appPin || '',
   };
 }
 

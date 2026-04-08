@@ -2,6 +2,19 @@
  * API通信モジュール
  */
 
+function getStoredPin() {
+  return sessionStorage.getItem('app-pin') || '';
+}
+
+export function setStoredPin(pin) {
+  sessionStorage.setItem('app-pin', pin);
+}
+
+function authHeaders() {
+  const pin = getStoredPin();
+  return pin ? { 'X-App-Pin': pin } : {};
+}
+
 async function request(url, options = {}) {
   const res = await fetch(url, options);
 
@@ -39,20 +52,24 @@ export function getPreviewUrl(productName, janCode) {
 }
 
 export async function getSettings() {
-  const res = await request('/api/settings');
+  const res = await request('/api/settings', {
+    headers: { ...authHeaders() },
+  });
   return res.json();
 }
 
 export async function saveSettings(settings) {
   const res = await request('/api/settings', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
     body: JSON.stringify(settings),
   });
   return res.json();
 }
 
 export async function discoverPrinters() {
-  const res = await request('/api/printer/discover');
+  const res = await request('/api/printer/discover', {
+    headers: { ...authHeaders() },
+  });
   return res.json();
 }
