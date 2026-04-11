@@ -1,5 +1,4 @@
 import { Router } from 'express';
-import sharp from 'sharp';
 import { renderLabel } from '../label/renderer.js';
 import { getConfig } from '../config.js';
 import { getProfile } from '../printer/profiles.js';
@@ -8,12 +7,17 @@ const router = Router();
 
 /**
  * POST /api/print-pdf
- * ラベル画像をPDFとして返す（AirPrint用）
+ * AirPrint用: ラベル画像をHTMLページとして返す
+ * iOSのSafariで開いて共有→プリントで印刷
  * Body: { items: [{ productName, janCode, quantity }] }
  */
 router.post('/', async (req, res, next) => {
   try {
-    const { items } = req.body;
+    // JSONまたはフォーム送信に対応
+    let items = req.body.items;
+    if (typeof items === 'string') {
+      items = JSON.parse(items);
+    }
 
     if (!items || !Array.isArray(items) || items.length === 0) {
       return res.status(400).json({ error: '印刷する商品を指定してください' });
@@ -24,63 +28,75 @@ router.post('/', async (req, res, next) => {
     const widthMm = profile.widthMm;
     const heightMm = profile.heightMm;
 
-    // mm → points (1mm = 2.835pt)
-    const ptPerMm = 2.835;
-    const pageW = Math.round(widthMm * ptPerMm);
-    const pageH = Math.round(heightMm * ptPerMm);
-
-    const pages = [];
+    const images = [];
 
     for (const item of items) {
       if (!item?.productName || !item?.janCode) continue;
+      if (!/^\d{8,14}$/.test(item.janCode)) continue;
       const quantity = Math.min(Math.max(1, item.quantity || 1), 50);
       const png = await renderLabel({ productName: item.productName, janCode: item.janCode }, profile);
+      const base64 = png.toString('base64');
 
       for (let i = 0; i < quantity; i++) {
-        pages.push(png);
+        images.push(base64);
       }
     }
 
-    if (pages.length === 0) {
+    if (images.length === 0) {
       return res.status(400).json({ error: '有効な商品がありません' });
     }
 
-    // 各ページをページサイズに合わせてPNG→PDF変換
-    // sharpは単ページPDFのみ対応なので、複数ページは手動でPDF結合
-    if (pages.length === 1) {
-      const pdf = await sharp(pages[0])
-        .resize({
-          width: Math.round(widthMm * 300 / 25.4),
-          height: Math.round(heightMm * 300 / 25.4),
-          fit: 'contain',
-          background: { r: 255, g: 255, b: 255 },
-        })
-        .toFormat('pdf', { density: 300 })
-        .toBuffer();
+    const labelsHtml = images.map((b64) =>
+      `<div class="label"><img src="data:image/png;base64,${b64}"></div>`
+    ).join('\n');
 
-      res.set('Content-Type', 'application/pdf');
-      res.set('Content-Disposition', 'inline; filename="label.pdf"');
-      res.send(pdf);
-    } else {
-      // 複数ページ: 各ページを個別PDFにしてPDFKit等なしで簡易結合
-      // sharpの制約で複数ページPDFは直接生成できないため、
-      // 1枚目のPDFを返して残りはリピート印刷で対応
-      // → 実用的にはiOS印刷ダイアログの部数指定を使う
-      const pdf = await sharp(pages[0])
-        .resize({
-          width: Math.round(widthMm * 300 / 25.4),
-          height: Math.round(heightMm * 300 / 25.4),
-          fit: 'contain',
-          background: { r: 255, g: 255, b: 255 },
-        })
-        .toFormat('pdf', { density: 300 })
-        .toBuffer();
-
-      res.set('Content-Type', 'application/pdf');
-      res.set('Content-Disposition', 'inline; filename="label.pdf"');
-      res.set('X-Label-Count', String(pages.length));
-      res.send(pdf);
+    const html = `<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ラベル印刷</title>
+<style>
+  @page { size: ${widthMm}mm ${heightMm}mm; margin: 0; }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: white; }
+  .label {
+    width: ${widthMm}mm;
+    height: ${heightMm}mm;
+    page-break-after: always;
+    break-after: page;
+    overflow: hidden;
+  }
+  .label:last-child {
+    page-break-after: auto;
+    break-after: auto;
+  }
+  .label img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+  }
+  @media screen {
+    body { background: #eee; display: flex; flex-direction: column; align-items: center; gap: 16px; padding: 16px; }
+    .label { background: white; box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
+    .print-btn {
+      position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+      padding: 14px 40px; background: #4466cc; color: white; border: none;
+      border-radius: 10px; font-size: 18px; font-weight: bold; cursor: pointer;
+      z-index: 100;
     }
+  }
+</style>
+</head>
+<body>
+${labelsHtml}
+<button class="print-btn" onclick="window.print()">印刷する</button>
+</body>
+</html>`;
+
+    res.set('Content-Type', 'text/html; charset=utf-8');
+    res.send(html);
   } catch (err) {
     next(err);
   }

@@ -309,40 +309,22 @@ async function printWithAirPrint(items) {
   printingStatus.textContent = 'AirPrintを準備中…';
 
   try {
-    const res = await fetch('/api/print-pdf', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ items }),
-    });
-
-    if (!res.ok) {
-      const body = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
-      throw new Error(body.error || `HTTP ${res.status}`);
-    }
-
-    const blob = await res.blob();
-    const url = URL.createObjectURL(blob);
-    const labelCount = parseInt(res.headers.get('X-Label-Count') || '1', 10);
+    // フォーム送信で新しいタブに印刷用HTMLを開く
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = '/api/print-pdf';
+    form.target = '_blank';
+    const input = document.createElement('input');
+    input.type = 'hidden';
+    input.name = 'items';
+    input.value = JSON.stringify(items);
+    form.appendChild(input);
+    document.body.appendChild(form);
+    form.submit();
+    document.body.removeChild(form);
 
     printingOverlay.hidden = true;
-
-    // PDFを新しいタブで開いて印刷
-    const printWindow = window.open(url, '_blank');
-    if (printWindow) {
-      if (labelCount > 1) {
-        showToast(`${labelCount}枚分のラベルです。印刷ダイアログで部数を${labelCount}に設定してください`);
-      } else {
-        showToast('PDFが開きました。共有ボタンから印刷してください');
-      }
-    } else {
-      // ポップアップブロック対策: 直接リンクで開く
-      const a = document.createElement('a');
-      a.href = url;
-      a.target = '_blank';
-      a.click();
-      showToast('PDFを開いて共有ボタンから印刷してください');
-    }
-
+    showToast('印刷ページが開きます。「印刷する」ボタンを押してください');
     saveToHistory(items);
   } catch (err) {
     showToast(`AirPrint準備エラー: ${err.message}`, true);

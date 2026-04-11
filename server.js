@@ -35,6 +35,7 @@ app.use(helmet({
 
 // ミドルウェア
 app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 // CORS — 同一オリジンのみ許可
 app.use((req, res, next) => {
