@@ -2,7 +2,8 @@ import { searchProducts, printLabels, getPrinterStatus, getPreviewUrl, getSettin
 
 // ── State ──
 
-let queue = [];
+const QUEUE_KEY = 'label-print-queue';
+let queue = loadQueue();
 let searchPage = 1;
 let searchQuery = '';
 let searching = false;
@@ -200,6 +201,7 @@ function renderQueue() {
     queueList.innerHTML = '<p class="empty-message">商品を追加してください</p>';
     queueFooter.hidden = true;
     queueBadge.hidden = true;
+    saveQueue();
     return;
   }
 
@@ -253,6 +255,8 @@ function renderQueue() {
       renderQueue();
     });
   });
+
+  saveQueue();
 }
 
 clearQueueBtn.addEventListener('click', () => {
@@ -639,8 +643,24 @@ function showHistory() {
   });
 }
 
+// ── Queue Persistence ──
+
+function saveQueue() {
+  try { localStorage.setItem(QUEUE_KEY, JSON.stringify(queue)); } catch { /* quota exceeded */ }
+}
+
+function loadQueue() {
+  try {
+    return JSON.parse(localStorage.getItem(QUEUE_KEY) || '[]');
+  } catch {
+    return [];
+  }
+}
+
 // 初期表示で履歴を表示
 showHistory();
+// キューが残っていれば復元表示
+if (queue.length > 0) renderQueue();
 
 // ── Utility ──
 
