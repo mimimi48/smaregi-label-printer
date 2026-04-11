@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import productsRouter from './src/routes/products.js';
 import printRouter from './src/routes/print.js';
+import printPdfRouter from './src/routes/print-pdf.js';
 import previewRouter from './src/routes/preview.js';
 import printerStatusRouter from './src/routes/printer-status.js';
 import settingsRouter from './src/routes/settings.js';
@@ -63,6 +64,7 @@ app.use(express.static(join(__dirname, 'public')));
 // APIルート
 app.use('/api/products', productsRouter);
 app.use('/api/print', printLimiter, printRouter);
+app.use('/api/print-pdf', printLimiter, printPdfRouter);
 app.use('/api/preview', previewRouter);
 app.use('/api/printer/discover', discoverLimiter);
 app.use('/api/printer', printerStatusRouter);
