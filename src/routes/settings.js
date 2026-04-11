@@ -21,7 +21,16 @@ router.get('/', requirePin, (req, res) => {
  */
 router.post('/', requirePin, (req, res, next) => {
   try {
-    const { smaregiContractId, smaregiClientId, smaregiClientSecret, smaregiApiHost, printerIp, printerPort, appPin } = req.body;
+    const {
+      smaregiContractId,
+      smaregiClientId,
+      smaregiClientSecret,
+      smaregiApiHost,
+      printerConnectionType,
+      printerIp,
+      printerPort,
+      appPin,
+    } = req.body;
 
     const updates = {};
 
@@ -40,6 +49,13 @@ router.post('/', requirePin, (req, res, next) => {
         return res.status(400).json({ error: `APIホストは ${ALLOWED_API_HOSTS.join(' または ')} のみ指定可能です` });
       }
       updates.smaregiApiHost = trimmed;
+    }
+
+    if (printerConnectionType !== undefined) {
+      if (!['tcp', 'airprint'].includes(printerConnectionType)) {
+        return res.status(400).json({ error: '接続方式が無効です' });
+      }
+      updates.printerConnectionType = printerConnectionType;
     }
 
     // プリンターIPはプライベートLANアドレスのみ

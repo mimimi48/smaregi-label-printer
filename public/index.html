@@ -88,15 +88,27 @@
       <div class="settings-group">
         <h3 class="settings-group-title">プリンター</h3>
         <label class="field">
-          <span class="field-label">プリンターIP</span>
-          <input type="text" id="settingPrinterIp" placeholder="192.168.1.100" inputmode="decimal">
+          <span class="field-label">接続方式</span>
+          <select id="settingPrinterConnectionType">
+            <option value="tcp">LAN / Wi-Fi</option>
+            <option value="airprint">iPad / iPhone AirPrint</option>
+          </select>
         </label>
-        <label class="field">
-          <span class="field-label">ポート</span>
-          <input type="number" id="settingPrinterPort" placeholder="9100" inputmode="numeric">
-        </label>
-        <button class="btn btn-ghost btn-sm" id="discoverPrinterBtn">プリンターを自動検出</button>
-        <div id="discoverResult" class="discover-result" hidden></div>
+        <div id="tcpPrinterFields">
+          <label class="field">
+            <span class="field-label">プリンターIP</span>
+            <input type="text" id="settingPrinterIp" placeholder="192.168.1.100" inputmode="decimal">
+          </label>
+          <label class="field">
+            <span class="field-label">ポート</span>
+            <input type="number" id="settingPrinterPort" placeholder="9100" inputmode="numeric">
+          </label>
+          <button class="btn btn-ghost btn-sm" id="discoverPrinterBtn">LANプリンターを自動検出</button>
+          <div id="discoverResult" class="discover-result" hidden></div>
+        </div>
+        <div id="airPrintFields" hidden>
+          <p class="field-help">印刷時にiPad/iPhoneの印刷画面が開きます。BrotherをAirPrint対応プリンターとして同じWi-Fiに接続してください。</p>
+        </div>
       </div>
 
       <div class="settings-group">
@@ -155,6 +167,8 @@
         <p id="printingStatus">印刷中…</p>
       </div>
     </div>
+
+    <div id="airPrintArea" aria-hidden="true"></div>
   </main>
 
   <nav class="bottom-nav">

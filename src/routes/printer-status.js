@@ -1,6 +1,7 @@
 import { Router } from 'express';
-import { checkPrinterStatus } from '../printer/tcp-client.js';
+import { checkConfiguredPrinterStatus } from '../printer/sender.js';
 import { discoverPrinters } from '../printer/discover.js';
+import { getConfig } from '../config.js';
 
 const router = Router();
 
@@ -9,8 +10,8 @@ const router = Router();
  * プリンターのオンライン状態を確認
  */
 router.get('/status', async (req, res) => {
-  const online = await checkPrinterStatus();
-  res.json({ online });
+  const online = await checkConfiguredPrinterStatus();
+  res.json({ online, connectionType: getConfig().printerConnectionType });
 });
 
 /**

@@ -93,6 +93,18 @@ describe('encodeLabel', () => {
     expect(encoded[encoded.length - 1]).toBe(0x1a);
   });
 
+  it('defaults to cut at end without auto cut', () => {
+    const bytesPerRow = Math.ceil(PRINT_WIDTH_DOTS / 8);
+    const bitmap = Buffer.alloc(bytesPerRow * PRINT_HEIGHT_DOTS, 0);
+    const encoded = encodeLabel(bitmap);
+
+    const autoCutIndex = findCommand(encoded, [0x1b, 0x69, 0x4d]);
+    const expandedModeIndex = findCommand(encoded, [0x1b, 0x69, 0x4b]);
+
+    expect(encoded[autoCutIndex + 3]).toBe(0x00);
+    expect(encoded[expandedModeIndex + 3]).toBe(0x08);
+  });
+
   it('contains correct number of raster lines', () => {
     const bytesPerRow = Math.ceil(PRINT_WIDTH_DOTS / 8);
     const bitmap = Buffer.alloc(bytesPerRow * PRINT_HEIGHT_DOTS, 0);
@@ -108,3 +120,12 @@ describe('encodeLabel', () => {
     expect(rasterLineCount).toBe(PRINT_HEIGHT_DOTS);
   });
 });
+
+function findCommand(buffer, command) {
+  for (let i = 0; i <= buffer.length - command.length; i++) {
+    if (command.every((byte, index) => buffer[i + index] === byte)) {
+      return i;
+    }
+  }
+  return -1;
+}

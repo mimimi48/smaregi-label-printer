@@ -19,12 +19,13 @@ import { RASTER_LINE_BYTES, PRINT_WIDTH_DOTS, PRINT_HEIGHT_DOTS } from '../label
  * @param {Buffer} bitmapData - 1bppモノクロビットマップ（0=白, 1=黒）
  *   各行 PRINT_WIDTH_DOTS ピクセル、PRINT_HEIGHT_DOTS 行
  * @param {object} options
- * @param {boolean} options.autoCut - 自動カットするか (default: true)
+ * @param {boolean} options.autoCut - 自動カットするか (default: false)
+ * @param {boolean} options.cutAtEnd - 印刷ジョブ末尾でカットするか (default: true)
  * @param {number} options.copies - 印刷枚数 (default: 1)
  * @returns {Buffer} プリンターに送信するバイナリデータ
  */
 export function encodeLabel(bitmapData, options = {}) {
-  const { autoCut = true, copies = 1 } = options;
+  const { autoCut = false, cutAtEnd = true, copies = 1 } = options;
   const buffers = [];
 
   // 1. Invalidate — 400バイトの0x00でプリンターの状態をリセット
@@ -61,16 +62,19 @@ export function encodeLabel(bitmapData, options = {}) {
   // 5. Auto cut設定 — ESC i M (auto cut flag)
   buffers.push(Buffer.from([0x1b, 0x69, 0x4d, autoCut ? 0x40 : 0x00]));
 
-  // 6. Cut each N labels (auto cut every label)
+  // 6. Expanded mode — ESC i K (bit 3 = cut at end)
+  buffers.push(Buffer.from([0x1b, 0x69, 0x4b, cutAtEnd ? 0x08 : 0x00]));
+
+  // 7. Cut each N labels (auto cut every label)
   buffers.push(Buffer.from([0x1b, 0x69, 0x41, 0x01]));
 
-  // 7. Margins (送り方向) — ESC i d (margin = 0)
+  // 8. Margins (送り方向) — ESC i d (margin = 0)
   buffers.push(Buffer.from([0x1b, 0x69, 0x64, 0x00, 0x00]));
 
-  // 8. Compression mode off
+  // 9. Compression mode off
   buffers.push(Buffer.from([0x4d, 0x00]));
 
-  // 9. ラスターデータ送信
+  // 10. ラスターデータ送信
   const bytesPerRow = Math.ceil(PRINT_WIDTH_DOTS / 8);
 
   for (let row = 0; row < PRINT_HEIGHT_DOTS; row++) {
@@ -88,7 +92,7 @@ export function encodeLabel(bitmapData, options = {}) {
     buffers.push(lineBuffer);
   }
 
-  // 10. Print command (with feeding)
+  // 11. Print command (with feeding)
   buffers.push(Buffer.from([0x1a]));
 
   return Buffer.concat(buffers);

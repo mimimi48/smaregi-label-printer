@@ -72,5 +72,9 @@ app.use(errorHandler);
 
 app.listen(PORT, () => {
   console.log(`ラベル印刷サーバー起動: http://localhost:${PORT}`);
-  console.log(`プリンターIP: ${config.printerIp || '未設定'}`);
+  if (config.printerConnectionType === 'airprint') {
+    console.log('プリンター接続: iPad/iPhone AirPrint');
+  } else {
+    console.log(`プリンターIP: ${config.printerIp || '未設定'}`);
+  }
 });

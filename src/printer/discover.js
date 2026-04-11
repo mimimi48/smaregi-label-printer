@@ -10,7 +10,7 @@ import { networkInterfaces } from 'node:os';
  * @returns {Promise<Array<{ip: string, name: string}>>}
  */
 export async function discoverPrinters(options = {}) {
-  const { timeout = 500, port = 9100 } = options;
+  const { timeout = 500, port = 9100, nameTimeout = 800 } = options;
 
   // サーバーのローカルIPからサブネットを特定
   const localIps = getLocalIpAddresses();
@@ -36,6 +36,10 @@ export async function discoverPrinters(options = {}) {
   }
 
   await Promise.all(scanPromises);
+
+  await Promise.all(results.map(async (printer) => {
+    printer.name = await getPrinterName(printer.ip, nameTimeout);
+  }));
 
   // IPアドレス順にソート
   results.sort((a, b) => {
@@ -87,3 +91,78 @@ function getLocalIpAddresses() {
 
   return ips;
 }
+
+async function getPrinterName(host, timeout) {
+  const paths = [
+    '/general/status.html',
+    '/',
+  ];
+
+  for (const path of paths) {
+    try {
+      const response = await fetchPrinterPage(host, path, timeout);
+      const name = extractPrinterName(response.text, response.headers);
+      if (name) return name;
+    } catch {
+      // 名前取得に失敗しても検出自体は継続する
+    }
+  }
+
+  return '';
+}
+
+async function fetchPrinterPage(host, path, timeout) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeout);
+
+  try {
+    const response = await fetch(`http://${host}${path}`, { signal: controller.signal });
+    const text = await response.text().catch(() => '');
+    return { text, headers: response.headers };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+function extractPrinterName(html, headers = new Headers()) {
+  const h1 = matchTagText(html, 'h1');
+  if (h1) return normalizePrinterName(h1);
+
+  const title = matchTagText(html, 'title');
+  if (title) return normalizePrinterName(title);
+
+  const server = headers.get?.('server') || '';
+  if (/epson/i.test(server)) return 'EPSON';
+  if (/brother/i.test(server)) return 'Brother';
+
+  return '';
+}
+
+function matchTagText(html, tagName) {
+  const match = html.match(new RegExp(`<${tagName}[^>]*>([^<]+)</${tagName}>`, 'i'));
+  return match ? decodeHtmlEntities(match[1]).trim() : '';
+}
+
+function normalizePrinterName(name) {
+  return name
+    .replace(/\s+/g, ' ')
+    .replace(/^Brother\s+/i, '')
+    .trim();
+}
+
+function decodeHtmlEntities(value) {
+  return value
+    .replace(/&#x([0-9a-f]+);/gi, (_, hex) => String.fromCharCode(parseInt(hex, 16)))
+    .replace(/&#(\d+);/g, (_, decimal) => String.fromCharCode(parseInt(decimal, 10)))
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"');
+}
+
+export const _test = {
+  extractPrinterName,
+  normalizePrinterName,
+  decodeHtmlEntities,
+};
