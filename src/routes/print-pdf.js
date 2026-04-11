@@ -59,15 +59,17 @@ router.post('/', async (req, res, next) => {
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ラベル印刷</title>
 <style>
-  @page { size: ${widthMm}mm ${heightMm}mm; margin: 0; }
+  @page { margin: 0; }
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body { background: white; }
   .label {
-    width: ${widthMm}mm;
-    height: ${heightMm}mm;
     page-break-after: always;
     break-after: page;
-    overflow: hidden;
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
   }
   .label:last-child {
     page-break-after: auto;
@@ -75,21 +77,21 @@ router.post('/', async (req, res, next) => {
   }
   .label img {
     display: block;
-    width: 100%;
-    height: 100%;
+    max-width: 100%;
+    max-height: 100%;
     object-fit: contain;
   }
   @media screen {
     body { background: #eee; display: flex; flex-direction: column; align-items: center; gap: 16px; padding: 16px; }
-    .label { background: white; box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
+    .label { background: white; box-shadow: 0 2px 8px rgba(0,0,0,0.15); width: auto; height: auto; padding: 16px; }
     .print-btn {
       position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
       padding: 14px 40px; background: #4466cc; color: white; border: none;
       border-radius: 10px; font-size: 18px; font-weight: bold; cursor: pointer;
       z-index: 100;
     }
-    @media print { .print-btn { display: none !important; } }
   }
+  @media print { .print-btn { display: none !important; } }
 </style>
 </head>
 <body>
