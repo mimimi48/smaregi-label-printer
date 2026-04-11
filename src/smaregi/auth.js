@@ -27,7 +27,10 @@ export async function getAccessToken() {
     throw new Error('スマレジAPI認証情報が設定されていません（設定画面から入力してください）');
   }
 
-  const tokenUrl = 'https://id.smaregi.jp/authorize/token';
+  // APIホストに応じてトークンURLを切り替え（dev環境 / 本番環境）
+  const apiHost = config.smaregiApiHost || 'https://api.smaregi.jp';
+  const idHost = apiHost.includes('smaregi.dev') ? 'https://id.smaregi.dev' : 'https://id.smaregi.jp';
+  const tokenUrl = `${idHost}/app/${contractId}/token`;
 
   const credentials = Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
 

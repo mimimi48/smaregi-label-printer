@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { renderLabelRaw } from '../label/renderer.js';
 import { encodeLabel, toMonochromeBitmap } from '../printer/brother-ql.js';
 import { sendToConfiguredPrinter } from '../printer/sender.js';
+import { getConfig } from '../config.js';
 
 const router = Router();
 
@@ -63,7 +64,7 @@ router.post('/', async (req, res, next) => {
         for (let i = 0; i < quantity; i++) {
           printIndex++;
           const isLastPrint = printIndex === totalPrints;
-          const printData = encodeLabel(bitmap, { autoCut: false, cutAtEnd: isLastPrint });
+          const printData = encodeLabel(bitmap, { autoCut: getConfig().autoCut, cutAtEnd: isLastPrint });
           await sendToConfiguredPrinter(printData);
           printed++;
         }

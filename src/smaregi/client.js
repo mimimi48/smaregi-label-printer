@@ -20,15 +20,13 @@ export async function searchProducts(query, options = {}) {
   const params = new URLSearchParams({
     limit: String(limit),
     page: String(page),
+    fields: 'productId,productCode,productName,groupCode,price,categoryId',
   });
 
-  // 数字のみならJANコード検索、それ以外は商品名検索
-  if (query) {
-    if (/^\d+$/.test(query)) {
-      params.set('group_code', query);
-    } else {
-      params.set('product_name', query);
-    }
+  // 数字のみならコード検索、それ以外は全件取得後にフィルタ
+  const isCodeSearch = query && /^\d+$/.test(query);
+  if (isCodeSearch) {
+    params.set('product_code', query);
   }
 
   const url = `${apiBase}/${contractId}/pos/products?${params}`;
@@ -36,7 +34,6 @@ export async function searchProducts(query, options = {}) {
   const res = await fetch(url, {
     headers: {
       Authorization: `Bearer ${token}`,
-      'Content-Type': 'application/json',
     },
   });
 
@@ -45,10 +42,21 @@ export async function searchProducts(query, options = {}) {
     throw new Error(`スマレジAPI エラー (${res.status}): ${body}`);
   }
 
-  const products = await res.json();
+  let products = await res.json();
+
+  // 商品名検索はAPI側が非対応のためクライアント側でフィルタ
+  if (query && !isCodeSearch) {
+    const q = query.toLowerCase();
+    products = products.filter(p =>
+      (p.productName || '').toLowerCase().includes(q) ||
+      (p.productCode || '').includes(q) ||
+      (p.groupCode || '').includes(q)
+    );
+  }
 
   // レスポンスヘッダーからページネーション情報を取得
-  const totalCount = parseInt(res.headers.get('x-total-count') || '0', 10);
+  const linkHeader = res.headers.get('link');
+  const totalCount = products.length;
 
   return {
     products: products.map(normalizeProduct),
@@ -89,10 +97,14 @@ export async function getProduct(productId) {
  * スマレジAPIレスポンスを正規化
  */
 function normalizeProduct(raw) {
+  // JANコードは数字のみの値を優先（groupCodeにブランド名が入るケースがある）
+  const candidates = [raw.productCode, raw.groupCode];
+  const janCode = candidates.find(c => c && /^\d{8,14}$/.test(c.trim())) || '';
+
   return {
     productId: raw.productId,
     productName: raw.productName || '',
-    janCode: raw.groupCode || raw.productCode || '',
+    janCode: janCode.trim(),
     price: raw.price || 0,
     categoryId: raw.categoryId || '',
     categoryName: raw.categoryName || '',

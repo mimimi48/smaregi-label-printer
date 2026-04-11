@@ -1,38 +1,50 @@
-// Brother QL-820NWBc: 300 DPI
-// DK-1209 ダイカットラベル: 29mm × 62mm
-// 印刷可能領域（若干のマージンを考慮）
+// Brother TD-4550DNWB: 300 DPI
+// ダイカットラベル: 49mm × 24mm
+//
+// レイアウト仕様:
+//   商品名エリア: 9mm
+//   バーコードエリア: 11mm
+//   数字エリア: 3mm（バーコード下の数字）
+//   余白: 上下左右 1.5mm
 
 export const DPI = 300;
 
-// 29mm × 62mm @ 300 DPI
-// 29mm = 幅方向（ヘッド幅）, 62mm = 送り方向
-export const LABEL_WIDTH_MM = 29;
-export const LABEL_HEIGHT_MM = 62;
+// 49mm × 24mm @ 300 DPI
+// ラベルは横長で読むが、プリンターは縦に排出
+// 24mm = ヘッド幅方向, 49mm = 送り方向
+export const LABEL_WIDTH_MM = 49;
+export const LABEL_HEIGHT_MM = 24;
 
-// QL-820NWBcのヘッド幅は最大62mm (720 dots)
-// 29mmラベルの場合、印刷幅 = 306 dots（左右マージン込み）
-// 送り方向 62mm = 732 dots
-export const PRINT_WIDTH_DOTS = 306;
-export const PRINT_HEIGHT_DOTS = 732;
+// レンダリングサイズ（横長・ユーザーが読む向き）
+export const RENDER_WIDTH = 579;   // 49mm
+export const RENDER_HEIGHT = 283;  // 24mm
 
-// Brother QLのラスターデータは1行あたりのバイト数が固定
-// QL-820NWBcは最大幅 720 dots = 90 bytes/line
-// ただし実際のデータ幅はラベル幅に合わせる
-export const RASTER_LINE_BYTES = 90;
+// ラスター送信サイズ（90°CW回転後）
+// 24mm @ 300DPI = 283 dots（ヘッド幅方向）
+// 49mm @ 300DPI = 579 dots（送り方向）
+export const PRINT_WIDTH_DOTS = 283;
+export const PRINT_HEIGHT_DOTS = 579;
 
-// ラベルレイアウト（dots単位）
+// TD-4550DNWBのヘッド最大幅 108mm = 1280 dots = 160 bytes/line
+export const RASTER_LINE_BYTES = 160;
+
+// 1mm ≈ 11.81 dots
+// 余白 1.5mm ≈ 18 dots
+// 商品名 9mm ≈ 106 dots
+// バーコード 11mm ≈ 130 dots
+// 数字 3mm ≈ 35 dots（bwip-jsのincludetextで描画）
 export const LAYOUT = {
-  margin: 10,
+  margin: 18,
   productName: {
-    y: 20,
-    maxWidth: PRINT_WIDTH_DOTS - 20,
-    fontSize: 36,
-    minFontSize: 20,
+    y: 18,
+    maxWidth: 579 - 36,
+    fontSize: 26,
+    minFontSize: 14,
   },
   barcode: {
-    y: 320,
-    width: 260,
-    height: 350,
-    textSize: 24,
+    y: 124,
+    width: 400,
+    height: 120,
+    textSize: 16,
   },
 };

@@ -29,6 +29,7 @@ router.post('/', requirePin, (req, res, next) => {
       printerConnectionType,
       printerIp,
       printerPort,
+      autoCut,
       appPin,
     } = req.body;
 
@@ -74,6 +75,11 @@ router.post('/', requirePin, (req, res, next) => {
         return res.status(400).json({ error: 'プリンターポートは9100〜9109の範囲で指定してください' });
       }
       updates.printerPort = port;
+    }
+
+    // オートカット設定
+    if (autoCut !== undefined) {
+      updates.autoCut = !!autoCut;
     }
 
     // PIN設定（4〜8桁の数字）

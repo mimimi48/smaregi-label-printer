@@ -14,6 +14,7 @@ const DEFAULTS = {
   printerConnectionType: 'tcp',
   printerIp: '',
   printerPort: 9100,
+  autoCut: false,
   port: 3000,
   appPin: '',
 };
@@ -60,6 +61,7 @@ export function getPublicConfig() {
     printerConnectionType: config.printerConnectionType,
     printerIp: config.printerIp,
     printerPort: config.printerPort,
+    autoCut: config.autoCut,
     pinConfigured: !!config.appPin,
     configured: !!(config.smaregiContractId && config.smaregiClientId && config.smaregiClientSecret && isPrinterConfigured(config)),
   };
@@ -77,6 +79,7 @@ function loadConfig() {
     printerConnectionType,
     printerIp: file.printerIp || process.env.PRINTER_IP || DEFAULTS.printerIp,
     printerPort: file.printerPort || Number(process.env.PRINTER_PORT) || DEFAULTS.printerPort,
+    autoCut: file.autoCut ?? DEFAULTS.autoCut,
     port: Number(process.env.PORT) || DEFAULTS.port,
     appPin: file.appPin || '',
   };

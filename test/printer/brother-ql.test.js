@@ -81,8 +81,8 @@ describe('encodeLabel', () => {
     expect(encoded[408]).toBe(0x7a);
     expect(encoded[409]).toBe(0x8e); // PI_QUALITY | PI_LENGTH | PI_WIDTH | PI_KIND
     expect(encoded[410]).toBe(0x0b); // die-cut
-    expect(encoded[411]).toBe(0x1d); // 29mm
-    expect(encoded[412]).toBe(0x3e); // 62mm
+    expect(encoded[411]).toBe(0x18); // 24mm
+    expect(encoded[412]).toBe(0x31); // 49mm
   });
 
   it('ends with print command 0x1A', () => {

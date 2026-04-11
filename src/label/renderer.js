@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { generateBarcode } from './barcode.js';
-import { PRINT_WIDTH_DOTS, PRINT_HEIGHT_DOTS, LAYOUT } from './constants.js';
+import { RENDER_WIDTH, RENDER_HEIGHT, LAYOUT } from './constants.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const FONT_PATH = join(__dirname, '../../fonts/NotoSansJP-Bold.ttf');
@@ -35,11 +35,11 @@ export async function renderLabel(product) {
   // 商品名をSVGで描画（日本語対応）
   const nameSvg = createTextSvg(productName, fontSize);
 
-  // ベースの白い画像を作成
+  // ベースの白い画像を作成（横長・ユーザーが読む向き）
   const base = sharp({
     create: {
-      width: PRINT_WIDTH_DOTS,
-      height: PRINT_HEIGHT_DOTS,
+      width: RENDER_WIDTH,
+      height: RENDER_HEIGHT,
       channels: 4,
       background: { r: 255, g: 255, b: 255, alpha: 1 },
     },
@@ -56,7 +56,7 @@ export async function renderLabel(product) {
     .toBuffer();
 
   // 合成
-  const barcodeLeft = Math.floor((PRINT_WIDTH_DOTS - LAYOUT.barcode.width) / 2);
+  const barcodeLeft = Math.floor((RENDER_WIDTH - LAYOUT.barcode.width) / 2);
 
   const label = await base
     .composite([
@@ -86,7 +86,10 @@ export async function renderLabel(product) {
 export async function renderLabelRaw(product) {
   const labelPng = await renderLabel(product);
 
+  // 横長画像を90°CW回転してラスター送信用の向きにする
+  // ユーザーがラベルを90°CCW回転して読むと正しい向きになる
   const { data, info } = await sharp(labelPng)
+    .rotate(90)
     .greyscale()
     .raw()
     .toBuffer({ resolveWithObject: true });

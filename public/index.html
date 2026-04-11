@@ -103,6 +103,11 @@
             <span class="field-label">ポート</span>
             <input type="number" id="settingPrinterPort" placeholder="9100" inputmode="numeric">
           </label>
+          <label class="field toggle-field">
+            <span class="field-label">オートカット</span>
+            <input type="checkbox" id="settingAutoCut">
+            <span class="toggle-label" id="autoCutLabel">OFF</span>
+          </label>
           <button class="btn btn-ghost btn-sm" id="discoverPrinterBtn">LANプリンターを自動検出</button>
           <div id="discoverResult" class="discover-result" hidden></div>
         </div>
