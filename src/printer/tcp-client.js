@@ -18,6 +18,10 @@ export function sendToPrinter(data, options = {}) {
     timeout = 10000,
   } = options;
 
+  if (!host) {
+    throw new Error('プリンターIPが設定されていません');
+  }
+
   return new Promise((resolve, reject) => {
     const socket = new net.Socket();
 
@@ -64,6 +68,8 @@ export function checkPrinterStatus(options = {}) {
     port = config.printerPort,
     timeout = 3000,
   } = options;
+
+  if (!host) return false;
 
   return new Promise((resolve) => {
     const socket = new net.Socket();

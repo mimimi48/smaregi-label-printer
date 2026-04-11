@@ -7,6 +7,7 @@ let searchPage = 1;
 let searchQuery = '';
 let searching = false;
 let printerOnline = false;
+let printerConnectionType = 'tcp';
 
 // ── DOM ──
 
@@ -28,6 +29,7 @@ const previewModal = $('#previewModal');
 const previewImage = $('#previewImage');
 const printingOverlay = $('#printingOverlay');
 const printingStatus = $('#printingStatus');
+const airPrintArea = $('#airPrintArea');
 
 // ── Navigation ──
 
@@ -263,6 +265,12 @@ clearQueueBtn.addEventListener('click', () => {
 
 printAllBtn.addEventListener('click', async () => {
   if (queue.length === 0) return;
+
+  if (printerConnectionType === 'airprint') {
+    await printWithAirPrint(queue);
+    return;
+  }
+
   if (!printerOnline) {
     showToast('プリンターがオフラインです', true);
     return;
@@ -292,6 +300,53 @@ printAllBtn.addEventListener('click', async () => {
   }
 });
 
+async function printWithAirPrint(items) {
+  printingOverlay.hidden = false;
+  printingStatus.textContent = 'AirPrintを準備中…';
+
+  try {
+    renderAirPrintLabels(items);
+    await waitForAirPrintImages();
+    printingOverlay.hidden = true;
+    showToast('印刷画面でBrotherプリンターを選択してください');
+    window.print();
+    saveToHistory(items);
+  } catch (err) {
+    showToast(`AirPrint準備エラー: ${err.message}`, true);
+  } finally {
+    printingOverlay.hidden = true;
+  }
+}
+
+function renderAirPrintLabels(items) {
+  airPrintArea.innerHTML = '';
+  for (const item of items) {
+    const quantity = Math.min(Math.max(1, item.quantity || 1), 50);
+    for (let i = 0; i < quantity; i++) {
+      const label = document.createElement('div');
+      label.className = 'airprint-label';
+
+      const img = document.createElement('img');
+      img.alt = `${item.productName} ${item.janCode}`;
+      img.src = getPreviewUrl(item.productName, item.janCode);
+
+      label.appendChild(img);
+      airPrintArea.appendChild(label);
+    }
+  }
+}
+
+async function waitForAirPrintImages() {
+  const images = [...airPrintArea.querySelectorAll('img')];
+  await Promise.all(images.map((img) => {
+    if (img.complete && img.naturalWidth > 0) return Promise.resolve();
+    return new Promise((resolve, reject) => {
+      img.addEventListener('load', resolve, { once: true });
+      img.addEventListener('error', () => reject(new Error('ラベル画像を生成できませんでした')), { once: true });
+    });
+  }));
+}
+
 // ── Preview ──
 
 function showPreview(productName, janCode) {
@@ -315,7 +370,15 @@ $('.modal-backdrop')?.addEventListener('click', () => {
 
 async function updatePrinterStatus() {
   try {
-    const { online } = await getPrinterStatus();
+    const { online, connectionType } = await getPrinterStatus();
+    printerConnectionType = connectionType || 'tcp';
+    if (printerConnectionType === 'airprint') {
+      printerOnline = true;
+      printerStatus.className = 'printer-status online';
+      printerStatus.querySelector('.status-text').textContent = 'AirPrint';
+      printAllBtn.disabled = false;
+      return;
+    }
     printerOnline = online;
     printerStatus.className = `printer-status ${online ? 'online' : 'offline'}`;
     printerStatus.querySelector('.status-text').textContent = online ? 'オンライン' : 'オフライン';
@@ -361,6 +424,9 @@ function vibrate(pattern) {
 
 const settingPrinterIp = $('#settingPrinterIp');
 const settingPrinterPort = $('#settingPrinterPort');
+const settingPrinterConnectionType = $('#settingPrinterConnectionType');
+const tcpPrinterFields = $('#tcpPrinterFields');
+const airPrintFields = $('#airPrintFields');
 const settingContractId = $('#settingContractId');
 const settingClientId = $('#settingClientId');
 const settingClientSecret = $('#settingClientSecret');
@@ -379,11 +445,14 @@ const settingAppPin = $('#settingAppPin');
 async function loadSettings() {
   try {
     const config = await getSettings();
+    settingPrinterConnectionType.value = config.printerConnectionType || 'tcp';
+    printerConnectionType = settingPrinterConnectionType.value;
     settingPrinterIp.value = config.printerIp || '';
     settingPrinterPort.value = config.printerPort || 9100;
     settingContractId.value = config.smaregiContractId || '';
     settingClientId.value = config.smaregiClientId || '';
     settingClientSecret.value = config.smaregiClientSecret || '';
+    updatePrinterConnectionFields();
     settingsForm.hidden = false;
     pinGate.hidden = true;
   } catch (err) {
@@ -414,13 +483,22 @@ pinInput.addEventListener('keydown', (e) => {
 
 loadSettings();
 
+settingPrinterConnectionType.addEventListener('change', updatePrinterConnectionFields);
+
+function updatePrinterConnectionFields() {
+  const useAirPrint = settingPrinterConnectionType.value === 'airprint';
+  tcpPrinterFields.hidden = useAirPrint;
+  airPrintFields.hidden = !useAirPrint;
+}
+
 saveSettingsBtn.addEventListener('click', async () => {
   saveSettingsBtn.disabled = true;
   settingsStatus.textContent = '保存中…';
   settingsStatus.className = 'settings-status';
 
   try {
-    const result = await saveSettings({
+    await saveSettings({
+      printerConnectionType: settingPrinterConnectionType.value,
       printerIp: settingPrinterIp.value,
       printerPort: settingPrinterPort.value,
       smaregiContractId: settingContractId.value,
@@ -430,6 +508,7 @@ saveSettingsBtn.addEventListener('click', async () => {
     });
 
     settingsStatus.textContent = '設定を保存しました';
+    printerConnectionType = settingPrinterConnectionType.value;
     // ステータス再チェック
     updatePrinterStatus();
   } catch (err) {

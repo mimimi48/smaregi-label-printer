@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { renderLabelRaw } from '../label/renderer.js';
 import { encodeLabel, toMonochromeBitmap } from '../printer/brother-ql.js';
-import { sendToPrinter } from '../printer/tcp-client.js';
+import { sendToConfiguredPrinter } from '../printer/sender.js';
 
 const router = Router();
 
@@ -28,17 +28,25 @@ router.post('/', async (req, res, next) => {
     const results = [];
     let printed = 0;
     let failed = 0;
+    const totalPrints = countPrintableLabels(items);
+    let printIndex = 0;
 
     for (const item of items) {
-      const { productName, janCode } = item;
-      const quantity = Math.min(Math.max(1, item.quantity || 1), MAX_QUANTITY_PER_ITEM);
+      if (!item || typeof item !== 'object') {
+        results.push({ status: 'error', message: '商品データが無効です' });
+        failed++;
+        continue;
+      }
 
-      if (!productName || typeof productName !== 'string' || productName.length > 200) {
+      const { productName, janCode } = item;
+      const quantity = normalizeQuantity(item.quantity);
+
+      if (!isValidProductName(productName)) {
         results.push({ productName, status: 'error', message: '商品名が無効です' });
         failed++;
         continue;
       }
-      if (!janCode || !/^\d{8,14}$/.test(janCode)) {
+      if (!isValidJanCode(janCode)) {
         results.push({ productName, status: 'error', message: 'JANコードが無効です' });
         failed++;
         continue;
@@ -53,8 +61,10 @@ router.post('/', async (req, res, next) => {
 
         // Brother QLコマンドにエンコード
         for (let i = 0; i < quantity; i++) {
-          const printData = encodeLabel(bitmap, { autoCut: true });
-          await sendToPrinter(printData);
+          printIndex++;
+          const isLastPrint = printIndex === totalPrints;
+          const printData = encodeLabel(bitmap, { autoCut: false, cutAtEnd: isLastPrint });
+          await sendToConfiguredPrinter(printData);
           printed++;
         }
 
@@ -70,5 +80,25 @@ router.post('/', async (req, res, next) => {
     next(err);
   }
 });
+
+function countPrintableLabels(items) {
+  return items.reduce((sum, item) => {
+    if (!item || typeof item !== 'object') return sum;
+    if (!isValidProductName(item.productName) || !isValidJanCode(item.janCode)) return sum;
+    return sum + normalizeQuantity(item.quantity);
+  }, 0);
+}
+
+function normalizeQuantity(quantity) {
+  return Math.min(Math.max(1, quantity || 1), MAX_QUANTITY_PER_ITEM);
+}
+
+function isValidProductName(productName) {
+  return !!productName && typeof productName === 'string' && productName.length <= 200;
+}
+
+function isValidJanCode(janCode) {
+  return !!janCode && /^\d{8,14}$/.test(janCode);
+}
 
 export default router;

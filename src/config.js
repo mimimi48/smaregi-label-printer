@@ -11,6 +11,7 @@ const DEFAULTS = {
   smaregiClientId: '',
   smaregiClientSecret: '',
   smaregiApiHost: 'https://api.smaregi.jp',
+  printerConnectionType: 'tcp',
   printerIp: '',
   printerPort: 9100,
   port: 3000,
@@ -56,20 +57,24 @@ export function getPublicConfig() {
     smaregiClientId: config.smaregiClientId,
     smaregiClientSecret: config.smaregiClientSecret ? '__MASKED__' : '',
     smaregiApiHost: config.smaregiApiHost,
+    printerConnectionType: config.printerConnectionType,
     printerIp: config.printerIp,
     printerPort: config.printerPort,
     pinConfigured: !!config.appPin,
-    configured: !!(config.smaregiContractId && config.smaregiClientId && config.smaregiClientSecret && config.printerIp),
+    configured: !!(config.smaregiContractId && config.smaregiClientId && config.smaregiClientSecret && isPrinterConfigured(config)),
   };
 }
 
 function loadConfig() {
   const file = loadFromFile();
+  const printerConnectionType = normalizePrinterConnectionType(file.printerConnectionType || process.env.PRINTER_CONNECTION_TYPE);
+
   return {
     smaregiContractId: file.smaregiContractId || process.env.SMAREGI_CONTRACT_ID || DEFAULTS.smaregiContractId,
     smaregiClientId: file.smaregiClientId || process.env.SMAREGI_CLIENT_ID || DEFAULTS.smaregiClientId,
     smaregiClientSecret: file.smaregiClientSecret || process.env.SMAREGI_CLIENT_SECRET || DEFAULTS.smaregiClientSecret,
     smaregiApiHost: file.smaregiApiHost || process.env.SMAREGI_API_HOST || DEFAULTS.smaregiApiHost,
+    printerConnectionType,
     printerIp: file.printerIp || process.env.PRINTER_IP || DEFAULTS.printerIp,
     printerPort: file.printerPort || Number(process.env.PRINTER_PORT) || DEFAULTS.printerPort,
     port: Number(process.env.PORT) || DEFAULTS.port,
@@ -84,4 +89,15 @@ function loadFromFile() {
   } catch {
     return {};
   }
+}
+
+function normalizePrinterConnectionType(value) {
+  return value === 'airprint' ? 'airprint' : DEFAULTS.printerConnectionType;
+}
+
+function isPrinterConfigured(config) {
+  if (config.printerConnectionType === 'airprint') {
+    return true;
+  }
+  return !!config.printerIp;
 }
