@@ -3,6 +3,7 @@ import { renderLabelRaw } from '../label/renderer.js';
 import { encodeLabel, toMonochromeBitmap } from '../printer/brother-ql.js';
 import { sendToConfiguredPrinter } from '../printer/sender.js';
 import { getConfig } from '../config.js';
+import { getProfile } from '../printer/profiles.js';
 
 const router = Router();
 
@@ -25,6 +26,9 @@ router.post('/', async (req, res, next) => {
     if (items.length > MAX_ITEMS) {
       return res.status(400).json({ error: `一度に${MAX_ITEMS}商品まで印刷できます` });
     }
+
+    const config = getConfig();
+    const profile = getProfile(config.printerModel, config.labelSize);
 
     const results = [];
     let printed = 0;
@@ -55,7 +59,7 @@ router.post('/', async (req, res, next) => {
 
       try {
         // ラベル画像をレンダリング
-        const { data, width, height } = await renderLabelRaw({ productName, janCode });
+        const { data, width, height } = await renderLabelRaw({ productName, janCode }, profile);
 
         // モノクロビットマップに変換
         const bitmap = toMonochromeBitmap(data, width, height, 1);
@@ -64,7 +68,7 @@ router.post('/', async (req, res, next) => {
         for (let i = 0; i < quantity; i++) {
           printIndex++;
           const isLastPrint = printIndex === totalPrints;
-          const printData = encodeLabel(bitmap, { autoCut: getConfig().autoCut, cutAtEnd: isLastPrint });
+          const printData = encodeLabel(bitmap, { autoCut: config.autoCut, cutAtEnd: isLastPrint, profile });
           await sendToConfiguredPrinter(printData);
           printed++;
         }

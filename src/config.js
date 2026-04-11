@@ -1,6 +1,7 @@
 import { readFileSync, writeFileSync, chmodSync, mkdirSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
+import { getModelList } from './printer/profiles.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const DATA_DIR = join(__dirname, '../data');
@@ -12,6 +13,8 @@ const DEFAULTS = {
   smaregiClientSecret: '',
   smaregiApiHost: 'https://api.smaregi.jp',
   printerConnectionType: 'tcp',
+  printerModel: 'TD-4550DNWB',
+  labelSize: '49x24',
   printerIp: '',
   printerPort: 9100,
   autoCut: false,
@@ -59,11 +62,14 @@ export function getPublicConfig() {
     smaregiClientSecret: config.smaregiClientSecret ? '__MASKED__' : '',
     smaregiApiHost: config.smaregiApiHost,
     printerConnectionType: config.printerConnectionType,
+    printerModel: config.printerModel,
+    labelSize: config.labelSize,
     printerIp: config.printerIp,
     printerPort: config.printerPort,
     autoCut: config.autoCut,
     pinConfigured: !!config.appPin,
     configured: !!(config.smaregiContractId && config.smaregiClientId && config.smaregiClientSecret && isPrinterConfigured(config)),
+    availableProfiles: getModelList(),
   };
 }
 
@@ -77,6 +83,8 @@ function loadConfig() {
     smaregiClientSecret: file.smaregiClientSecret || process.env.SMAREGI_CLIENT_SECRET || DEFAULTS.smaregiClientSecret,
     smaregiApiHost: file.smaregiApiHost || process.env.SMAREGI_API_HOST || DEFAULTS.smaregiApiHost,
     printerConnectionType,
+    printerModel: file.printerModel || DEFAULTS.printerModel,
+    labelSize: file.labelSize || DEFAULTS.labelSize,
     printerIp: file.printerIp || process.env.PRINTER_IP || DEFAULTS.printerIp,
     printerPort: file.printerPort || Number(process.env.PRINTER_PORT) || DEFAULTS.printerPort,
     autoCut: file.autoCut ?? DEFAULTS.autoCut,

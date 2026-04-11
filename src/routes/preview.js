@@ -1,5 +1,7 @@
 import { Router } from 'express';
 import { renderLabel } from '../label/renderer.js';
+import { getConfig } from '../config.js';
+import { getProfile } from '../printer/profiles.js';
 
 const router = Router();
 
@@ -18,7 +20,9 @@ router.get('/', async (req, res, next) => {
       return res.status(400).json({ error: 'JANコードが無効です（8〜14桁の数字）' });
     }
 
-    const png = await renderLabel({ productName, janCode });
+    const config = getConfig();
+    const profile = getProfile(config.printerModel, config.labelSize);
+    const png = await renderLabel({ productName, janCode }, profile);
 
     res.set('Content-Type', 'image/png');
     res.set('Cache-Control', 'no-cache');

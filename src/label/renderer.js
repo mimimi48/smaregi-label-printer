@@ -19,27 +19,29 @@ try {
 /**
  * 商品名とJANコードからラベル画像を生成
  * @param {object} product
- * @param {string} product.productName - 商品名
- * @param {string} product.janCode - JANコード（13桁）
+ * @param {object} [profile] - プリンタープロファイル（省略時はデフォルト）
  * @returns {Promise<Buffer>} PNG画像バッファ
  */
-export async function renderLabel(product) {
+export async function renderLabel(product, profile = null) {
   const { productName, janCode } = product;
+  const width = profile?.printWidthDots ?? PRINT_WIDTH_DOTS;
+  const height = profile?.printHeightDots ?? PRINT_HEIGHT_DOTS;
+  const layout = profile?.layout ?? LAYOUT;
 
   // バーコード画像を生成
   const barcodePng = await generateBarcode(janCode);
 
   // 商品名のフォントサイズを決定（長い名前は小さく）
-  const fontSize = calculateFontSize(productName);
+  const fontSize = calculateFontSize(productName, layout);
 
   // 商品名をSVGで描画（日本語対応）
-  const nameSvg = createTextSvg(productName, fontSize);
+  const nameSvg = createTextSvg(productName, fontSize, layout);
 
   // ベースの白い画像を作成
   const base = sharp({
     create: {
-      width: PRINT_WIDTH_DOTS,
-      height: PRINT_HEIGHT_DOTS,
+      width,
+      height,
       channels: 4,
       background: { r: 255, g: 255, b: 255, alpha: 1 },
     },
@@ -48,26 +50,26 @@ export async function renderLabel(product) {
   // バーコード画像のサイズを取得してリサイズ
   const barcodeResized = await sharp(barcodePng)
     .resize({
-      width: LAYOUT.barcode.width,
-      height: LAYOUT.barcode.height,
+      width: layout.barcode.width,
+      height: layout.barcode.height,
       fit: 'contain',
       background: { r: 255, g: 255, b: 255, alpha: 1 },
     })
     .toBuffer();
 
   // 合成
-  const barcodeLeft = Math.floor((PRINT_WIDTH_DOTS - LAYOUT.barcode.width) / 2);
+  const barcodeLeft = Math.floor((width - layout.barcode.width) / 2);
 
   const label = await base
     .composite([
       {
         input: Buffer.from(nameSvg),
-        top: LAYOUT.productName.y,
-        left: LAYOUT.margin,
+        top: layout.productName.y,
+        left: layout.margin,
       },
       {
         input: barcodeResized,
-        top: LAYOUT.barcode.y,
+        top: layout.barcode.y,
         left: barcodeLeft,
       },
     ])
@@ -79,12 +81,12 @@ export async function renderLabel(product) {
 
 /**
  * ラベル画像をグレースケールのrawピクセルデータとして取得
- * （Brother QLエンコーダーへの入力用）
  * @param {object} product
+ * @param {object} [profile] - プリンタープロファイル
  * @returns {Promise<{data: Buffer, width: number, height: number}>}
  */
-export async function renderLabelRaw(product) {
-  const labelPng = await renderLabel(product);
+export async function renderLabelRaw(product, profile = null) {
+  const labelPng = await renderLabel(product, profile);
 
   // byte 0=ヘッド右端のため、画像を水平反転してラスター方向に合わせる
   const { data, info } = await sharp(labelPng)
@@ -99,22 +101,20 @@ export async function renderLabelRaw(product) {
 /**
  * 商品名の長さに応じたフォントサイズを計算
  */
-function calculateFontSize(text) {
+function calculateFontSize(text, layout) {
   const len = text.length;
-  if (len <= 6) return LAYOUT.productName.fontSize;
-  if (len <= 10) return 30;
-  if (len <= 15) return 24;
-  if (len <= 20) return 20;
-  return LAYOUT.productName.minFontSize;
+  if (len <= 6) return layout.productName.fontSize;
+  if (len <= 10) return Math.round(layout.productName.fontSize * 0.7);
+  if (len <= 15) return Math.round(layout.productName.fontSize * 0.55);
+  if (len <= 20) return Math.round(layout.productName.fontSize * 0.45);
+  return layout.productName.minFontSize;
 }
 
 /**
  * 商品名のSVG画像を生成（日本語対応）
- * sharpのSVGオーバーレイ機能を使用
  */
-function createTextSvg(text, fontSize) {
-  const maxWidth = LAYOUT.productName.maxWidth;
-  // 長いテキストは折り返し
+function createTextSvg(text, fontSize, layout) {
+  const maxWidth = layout.productName.maxWidth;
   const lines = wrapText(text, maxWidth, fontSize);
   const lineHeight = fontSize * 1.3;
   const totalHeight = Math.ceil(lines.length * lineHeight + fontSize * 0.3);
@@ -136,10 +136,6 @@ function createTextSvg(text, fontSize) {
   </svg>`;
 }
 
-/**
- * テキストを指定幅に収まるように折り返す
- * 簡易実装：日本語は1文字≒fontSize*0.9px、英数字は≒fontSize*0.55px
- */
 function wrapText(text, maxWidth, fontSize) {
   const lines = [];
   let currentLine = '';
@@ -161,7 +157,6 @@ function wrapText(text, maxWidth, fontSize) {
     lines.push(currentLine);
   }
 
-  // 最大4行まで
   if (lines.length > 4) {
     lines.length = 4;
     lines[3] = lines[3].slice(0, -1) + '…';

@@ -1,7 +1,8 @@
 import { Router } from 'express';
-import { getPublicConfig, saveConfig } from '../config.js';
+import { getPublicConfig, saveConfig, getConfig } from '../config.js';
 import { clearTokenCache } from '../smaregi/auth.js';
 import { requirePin } from '../middleware/auth.js';
+import { PRINTER_MODELS } from '../printer/profiles.js';
 
 const router = Router();
 
@@ -27,6 +28,8 @@ router.post('/', requirePin, (req, res, next) => {
       smaregiClientSecret,
       smaregiApiHost,
       printerConnectionType,
+      printerModel,
+      labelSize,
       printerIp,
       printerPort,
       autoCut,
@@ -50,6 +53,24 @@ router.post('/', requirePin, (req, res, next) => {
         return res.status(400).json({ error: `APIホストは ${ALLOWED_API_HOSTS.join(' または ')} のみ指定可能です` });
       }
       updates.smaregiApiHost = trimmed;
+    }
+
+    // プリンターモデル
+    if (printerModel !== undefined) {
+      if (!PRINTER_MODELS[printerModel]) {
+        return res.status(400).json({ error: '未対応のプリンターモデルです' });
+      }
+      updates.printerModel = printerModel;
+    }
+
+    // ラベルサイズ
+    if (labelSize !== undefined) {
+      const modelId = printerModel || getConfig().printerModel;
+      const model = PRINTER_MODELS[modelId];
+      if (!model?.labelSizes[labelSize]) {
+        return res.status(400).json({ error: 'このプリンターモデルで未対応のラベルサイズです' });
+      }
+      updates.labelSize = labelSize;
     }
 
     if (printerConnectionType !== undefined) {

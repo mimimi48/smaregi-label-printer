@@ -422,9 +422,12 @@ function vibrate(pattern) {
 
 // ── Settings ──
 
+const settingPrinterModel = $('#settingPrinterModel');
+const settingLabelSize = $('#settingLabelSize');
 const settingPrinterIp = $('#settingPrinterIp');
 const settingPrinterPort = $('#settingPrinterPort');
 const settingPrinterConnectionType = $('#settingPrinterConnectionType');
+let availableProfiles = [];
 const tcpPrinterFields = $('#tcpPrinterFields');
 const airPrintFields = $('#airPrintFields');
 const settingContractId = $('#settingContractId');
@@ -447,6 +450,11 @@ const settingAppPin = $('#settingAppPin');
 async function loadSettings() {
   try {
     const config = await getSettings();
+    // プロファイルドロップダウンを構築
+    availableProfiles = config.availableProfiles || [];
+    populateModelDropdown(config.printerModel || 'TD-4550DNWB');
+    updateLabelSizeOptions(config.labelSize || '49x24');
+
     settingPrinterConnectionType.value = config.printerConnectionType || 'tcp';
     printerConnectionType = settingPrinterConnectionType.value;
     settingPrinterIp.value = config.printerIp || '';
@@ -485,6 +493,38 @@ pinInput.addEventListener('keydown', (e) => {
   if (e.key === 'Enter') pinSubmitBtn.click();
 });
 
+function populateModelDropdown(selectedModel) {
+  settingPrinterModel.innerHTML = '';
+  for (const model of availableProfiles) {
+    const opt = document.createElement('option');
+    opt.value = model.id;
+    opt.textContent = model.name;
+    settingPrinterModel.appendChild(opt);
+  }
+  settingPrinterModel.value = selectedModel;
+}
+
+function updateLabelSizeOptions(selectedSize) {
+  const modelId = settingPrinterModel.value;
+  const model = availableProfiles.find((m) => m.id === modelId);
+  settingLabelSize.innerHTML = '';
+  if (model) {
+    for (const size of model.labelSizes) {
+      const opt = document.createElement('option');
+      opt.value = size.id;
+      opt.textContent = size.name;
+      settingLabelSize.appendChild(opt);
+    }
+  }
+  if (selectedSize) {
+    settingLabelSize.value = selectedSize;
+  }
+}
+
+settingPrinterModel.addEventListener('change', () => {
+  updateLabelSizeOptions();
+});
+
 settingAutoCut.addEventListener('change', () => {
   autoCutLabel.textContent = settingAutoCut.checked ? 'ON' : 'OFF';
 });
@@ -506,6 +546,8 @@ saveSettingsBtn.addEventListener('click', async () => {
 
   try {
     await saveSettings({
+      printerModel: settingPrinterModel.value,
+      labelSize: settingLabelSize.value,
       printerConnectionType: settingPrinterConnectionType.value,
       printerIp: settingPrinterIp.value,
       printerPort: settingPrinterPort.value,
