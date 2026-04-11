@@ -393,7 +393,7 @@ async function updatePrinterStatus() {
 
 // 30秒ごとにステータスチェック
 updatePrinterStatus();
-setInterval(updatePrinterStatus, 30_000);
+setInterval(updatePrinterStatus, 60_000);
 
 // ── Toast ──
 
