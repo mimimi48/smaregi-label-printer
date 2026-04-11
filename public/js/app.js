@@ -309,6 +309,7 @@ async function printWithAirPrint(items) {
   printingStatus.textContent = 'AirPrintを準備中…';
 
   try {
+    applyPrintPageSize();
     renderAirPrintLabels(items);
     await waitForAirPrintImages();
     printingOverlay.hidden = true;
@@ -319,6 +320,21 @@ async function printWithAirPrint(items) {
     showToast(`AirPrint準備エラー: ${err.message}`, true);
   } finally {
     printingOverlay.hidden = true;
+  }
+}
+
+function applyPrintPageSize() {
+  let style = document.getElementById('airprint-page-style');
+  if (!style) {
+    style = document.createElement('style');
+    style.id = 'airprint-page-style';
+    document.head.appendChild(style);
+  }
+  const model = availableProfiles.find((m) => m.id === settingPrinterModel.value);
+  const labelSize = model?.labelSizes.find((s) => s.id === settingLabelSize.value);
+  if (labelSize) {
+    const [w, h] = labelSize.id.split('x').map(Number);
+    style.textContent = `@media print { @page { size: ${w}mm ${h}mm; } .airprint-label { width: ${w}mm; height: ${h}mm; } }`;
   }
 }
 

@@ -791,7 +791,6 @@ body {
 
 @media print {
   @page {
-    size: 29mm 62mm;
     margin: 0;
   }
 
@@ -814,8 +813,6 @@ body {
   }
 
   .airprint-label {
-    width: 29mm;
-    height: 62mm;
     page-break-after: always;
     break-after: page;
     overflow: hidden;
@@ -828,8 +825,8 @@ body {
 
   .airprint-label img {
     display: block;
-    width: 29mm;
-    height: 62mm;
+    width: 100%;
+    height: auto;
     object-fit: contain;
   }
 }
