@@ -14,6 +14,7 @@ import { getConfig } from './src/config.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const app = express();
+app.set('trust proxy', 1);
 const config = getConfig();
 const PORT = config.port;
 
