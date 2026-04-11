@@ -88,6 +88,7 @@ router.post('/', async (req, res, next) => {
       border-radius: 10px; font-size: 18px; font-weight: bold; cursor: pointer;
       z-index: 100;
     }
+    @media print { .print-btn { display: none !important; } }
   }
 </style>
 </head>
