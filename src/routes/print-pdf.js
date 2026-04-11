@@ -12,6 +12,8 @@ const router = Router();
  * Body: { items: [{ productName, janCode, quantity }] }
  */
 router.post('/', async (req, res, next) => {
+  // 印刷ページはインラインスクリプトが必要なのでCSPを緩和
+  res.removeHeader('Content-Security-Policy');
   try {
     // JSONまたはフォーム送信に対応
     let items = req.body.items;
@@ -91,7 +93,8 @@ router.post('/', async (req, res, next) => {
 </head>
 <body>
 ${labelsHtml}
-<button class="print-btn" onclick="window.print()">印刷する</button>
+<button class="print-btn" id="printBtn">印刷する</button>
+<script>document.getElementById('printBtn').addEventListener('click',function(){window.print()});</script>
 </body>
 </html>`;
 
