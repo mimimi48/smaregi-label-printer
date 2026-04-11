@@ -26,12 +26,12 @@ export const PRINTER_MODELS = {
           barcode: { y: 100, width: 540, height: 160, textSize: 18 },
         },
       },
-      '30x15': {
-        name: '30mm × 15mm',
+      '30x14': {
+        name: '30mm × 14mm',
         widthMm: 30,
-        heightMm: 15,
+        heightMm: 14,
         printWidthDots: 354,
-        printHeightDots: 177,
+        printHeightDots: 165,
         mediaTypeByte: 0x4b,
         labelOffset: 59,
         layout: {
