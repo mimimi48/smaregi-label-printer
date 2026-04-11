@@ -65,7 +65,7 @@ export async function renderLabel(product, profile = null) {
       {
         input: Buffer.from(nameSvg),
         top: layout.productName.y,
-        left: layout.margin,
+        left: Math.floor((width - layout.productName.maxWidth) / 2),
       },
       {
         input: barcodeResized,
@@ -142,7 +142,7 @@ function wrapText(text, maxWidth, fontSize) {
   let currentWidth = 0;
 
   for (const char of text) {
-    const charWidth = isHalfWidth(char) ? fontSize * 0.55 : fontSize * 0.9;
+    const charWidth = isHalfWidth(char) ? fontSize * 0.6 : fontSize * 1.0;
     if (currentWidth + charWidth > maxWidth && currentLine.length > 0) {
       lines.push(currentLine);
       currentLine = char;
