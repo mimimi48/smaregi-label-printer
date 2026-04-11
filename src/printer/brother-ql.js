@@ -39,13 +39,13 @@ export function encodeLabel(bitmapData, options = {}) {
   buffers.push(Buffer.from([0x1b, 0x69, 0x61, 0x01]));
 
   // 4. Media type — ESC i z (メディア情報)
-  // TD-4550DNWB: 24mm(ヘッド幅) × 49mm(送り) ダイカットラベル
+  // TD-4550DNWB: 49mm(ヘッド幅) × 24mm(送り) ダイカットラベル
   buffers.push(Buffer.from([
     0x1b, 0x69, 0x7a,
     0x8e,       // Valid flags: PI_QUALITY(0x80) | PI_LENGTH(0x08) | PI_WIDTH(0x04) | PI_KIND(0x02)
-    0x0b,       // Media type: die-cut label
-    0x18,       // Label width: 24mm (ヘッド方向)
-    0x31,       // Label length: 49mm (送り方向)
+    0x4b,       // Media type: die-cut label (0x4B)
+    0x31,       // Label width: 49mm (ヘッド方向)
+    0x18,       // Label length: 24mm (送り方向)
     0x00, 0x00, // ラスター行数 (低バイト, 高バイト) — 後で設定
     0x00, 0x00, // ページ番号 (使用しない)
     0x00,       // 予約
@@ -80,10 +80,12 @@ export function encodeLabel(bitmapData, options = {}) {
   for (let row = 0; row < PRINT_HEIGHT_DOTS; row++) {
     const lineBuffer = Buffer.alloc(RASTER_LINE_BYTES, 0x00);
 
-    // ビットマップデータをコピー（左詰め）
+    // ビットマップデータをオフセット位置にコピー
+    // 実測: byte 75-79がラベル中央 → ラベルはbyte 44〜116付近
+    const labelOffset = 44;
     const srcOffset = row * bytesPerRow;
     if (srcOffset + bytesPerRow <= bitmapData.length) {
-      bitmapData.copy(lineBuffer, 0, srcOffset, srcOffset + bytesPerRow);
+      bitmapData.copy(lineBuffer, labelOffset, srcOffset, srcOffset + bytesPerRow);
     }
 
     // ラスターラインコマンド: g 0x00 <length> <data>

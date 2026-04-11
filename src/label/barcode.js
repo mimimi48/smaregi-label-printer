@@ -19,12 +19,12 @@ export async function generateBarcode(janCode, options = {}) {
   const png = await bwipjs.toBuffer({
     bcid: 'ean13',
     text: janCode,
-    scale: 3,
-    width,
-    height,
+    scale: 6,
+    width: 45,
+    height: 20,
     includetext: includeText,
     textxalign: 'center',
-    textsize: 10,
+    textsize: 12,
     monochrome: true,
   });
 

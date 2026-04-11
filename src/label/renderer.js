@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { generateBarcode } from './barcode.js';
-import { RENDER_WIDTH, RENDER_HEIGHT, LAYOUT } from './constants.js';
+import { PRINT_WIDTH_DOTS, PRINT_HEIGHT_DOTS, LAYOUT } from './constants.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const FONT_PATH = join(__dirname, '../../fonts/NotoSansJP-Bold.ttf');
@@ -35,11 +35,11 @@ export async function renderLabel(product) {
   // 商品名をSVGで描画（日本語対応）
   const nameSvg = createTextSvg(productName, fontSize);
 
-  // ベースの白い画像を作成（横長・ユーザーが読む向き）
+  // ベースの白い画像を作成
   const base = sharp({
     create: {
-      width: RENDER_WIDTH,
-      height: RENDER_HEIGHT,
+      width: PRINT_WIDTH_DOTS,
+      height: PRINT_HEIGHT_DOTS,
       channels: 4,
       background: { r: 255, g: 255, b: 255, alpha: 1 },
     },
@@ -56,7 +56,7 @@ export async function renderLabel(product) {
     .toBuffer();
 
   // 合成
-  const barcodeLeft = Math.floor((RENDER_WIDTH - LAYOUT.barcode.width) / 2);
+  const barcodeLeft = Math.floor((PRINT_WIDTH_DOTS - LAYOUT.barcode.width) / 2);
 
   const label = await base
     .composite([
@@ -86,10 +86,9 @@ export async function renderLabel(product) {
 export async function renderLabelRaw(product) {
   const labelPng = await renderLabel(product);
 
-  // 横長画像を90°CW回転してラスター送信用の向きにする
-  // ユーザーがラベルを90°CCW回転して読むと正しい向きになる
+  // byte 0=ヘッド右端のため、画像を水平反転してラスター方向に合わせる
   const { data, info } = await sharp(labelPng)
-    .rotate(90)
+    .flop()
     .greyscale()
     .raw()
     .toBuffer({ resolveWithObject: true });
@@ -128,7 +127,7 @@ function createTextSvg(text, fontSize) {
   const textElements = lines.map((line, i) => {
     const y = fontSize + i * lineHeight;
     const escaped = escapeXml(line);
-    return `<text x="0" y="${y}" font-size="${fontSize}" font-family="${fontFamily}" font-weight="bold" fill="black">${escaped}</text>`;
+    return `<text x="50%" y="${y}" text-anchor="middle" font-size="${fontSize}" font-family="${fontFamily}" font-weight="bold" fill="black">${escaped}</text>`;
   }).join('\n');
 
   return `<svg width="${maxWidth}" height="${totalHeight}" xmlns="http://www.w3.org/2000/svg">
