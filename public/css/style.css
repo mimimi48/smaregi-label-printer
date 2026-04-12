@@ -1,9 +1,9 @@
 :root {
-  --color-bg: oklch(97% 0.005 260);
+  --color-bg: oklch(96.5% 0.008 260);
   --color-surface: oklch(100% 0 0);
   --color-text: oklch(20% 0.01 260);
   --color-text-secondary: oklch(45% 0.01 260);
-  --color-border: oklch(88% 0.005 260);
+  --color-border: oklch(90% 0.005 260);
   --color-primary: oklch(50% 0.18 260);
   --color-primary-hover: oklch(42% 0.18 260);
   --color-primary-text: oklch(100% 0 0);
@@ -12,12 +12,23 @@
   --color-online: oklch(65% 0.2 150);
   --color-offline: oklch(55% 0.2 25);
 
+  /* グラデーション：各セクション別 */
+  --grad-header: linear-gradient(135deg, oklch(35% 0.15 260), oklch(42% 0.18 280));
+  --grad-search: linear-gradient(180deg, oklch(95% 0.015 250), oklch(96.5% 0.008 260));
+  --grad-product: linear-gradient(135deg, oklch(98% 0.01 240), oklch(100% 0 0));
+  --grad-queue: linear-gradient(135deg, oklch(97% 0.02 150), oklch(100% 0 0));
+  --grad-template: linear-gradient(135deg, oklch(97% 0.02 290), oklch(100% 0 0));
+  --grad-primary-btn: linear-gradient(135deg, oklch(52% 0.18 255), oklch(46% 0.2 275));
+  --grad-nav: linear-gradient(180deg, oklch(99% 0.005 260), oklch(96% 0.01 260));
+  --grad-footer: linear-gradient(180deg, oklch(100% 0 0), oklch(97% 0.01 260));
+
   --radius-sm: 6px;
   --radius-md: 10px;
   --radius-lg: 14px;
 
   --shadow-sm: 0 1px 3px oklch(0% 0 0 / 0.06);
   --shadow-md: 0 4px 12px oklch(0% 0 0 / 0.08);
+  --shadow-card: 0 2px 8px oklch(0% 0 0 / 0.06), 0 0 0 1px oklch(0% 0 0 / 0.03);
 
   --space-xs: 4px;
   --space-sm: 8px;
@@ -59,14 +70,16 @@ body {
   justify-content: space-between;
   height: var(--header-height);
   padding: 0 var(--space-md);
-  background: var(--color-surface);
-  border-bottom: 1px solid var(--color-border);
+  background: var(--grad-header);
+  border-bottom: none;
+  box-shadow: 0 2px 12px oklch(30% 0.15 260 / 0.25);
 }
 
 .app-title {
   font-size: 1.1rem;
   font-weight: 700;
   letter-spacing: 0.02em;
+  color: white;
 }
 
 .printer-status {
@@ -74,7 +87,7 @@ body {
   align-items: center;
   gap: var(--space-xs);
   font-size: 0.8rem;
-  color: var(--color-text-secondary);
+  color: oklch(85% 0.03 260);
 }
 
 .status-dot {
@@ -111,7 +124,7 @@ body {
   top: var(--header-height);
   z-index: 50;
   padding: var(--space-sm) 0 var(--space-md);
-  background: var(--color-bg);
+  background: var(--grad-search);
 }
 
 .search-row {
@@ -185,9 +198,10 @@ body {
   align-items: center;
   gap: var(--space-md);
   padding: var(--space-md);
-  background: var(--color-surface);
+  background: var(--grad-product);
   border-radius: var(--radius-md);
-  box-shadow: var(--shadow-sm);
+  box-shadow: var(--shadow-card);
+  border-left: 3px solid oklch(65% 0.15 240);
   cursor: pointer;
   transition: transform 0.15s, box-shadow 0.15s;
   -webkit-user-select: none;
@@ -247,9 +261,10 @@ body {
   align-items: center;
   gap: var(--space-md);
   padding: var(--space-md);
-  background: var(--color-surface);
+  background: var(--grad-queue);
   border-radius: var(--radius-md);
-  box-shadow: var(--shadow-sm);
+  box-shadow: var(--shadow-card);
+  border-left: 3px solid oklch(65% 0.16 150);
 }
 
 .queue-item-info {
@@ -337,12 +352,10 @@ body {
   align-items: center;
   justify-content: space-between;
   padding: var(--space-md);
-  background: var(--color-surface);
+  background: var(--grad-footer);
   border-top: 1px solid var(--color-border);
-  box-shadow: 0 -2px 8px oklch(0% 0 0 / 0.05);
+  box-shadow: 0 -2px 12px oklch(0% 0 0 / 0.08);
 }
-
-
 
 .queue-total {
   font-size: 0.95rem;
@@ -363,9 +376,10 @@ body {
 }
 
 .template-card {
-  background: var(--color-surface);
+  background: var(--grad-template);
   border-radius: var(--radius-md);
-  box-shadow: var(--shadow-sm);
+  box-shadow: var(--shadow-card);
+  border-left: 3px solid oklch(65% 0.15 290);
   overflow: hidden;
 }
 
@@ -530,12 +544,14 @@ body {
 }
 
 .btn-primary {
-  background: var(--color-primary);
+  background: var(--grad-primary-btn);
   color: var(--color-primary-text);
+  box-shadow: 0 2px 8px oklch(45% 0.18 265 / 0.3);
 }
 
 .btn-primary:active {
   background: var(--color-primary-hover);
+  box-shadow: 0 1px 4px oklch(45% 0.18 265 / 0.2);
 }
 
 .btn-ghost {
@@ -684,8 +700,9 @@ body {
   z-index: 100;
   display: flex;
   height: var(--nav-height);
-  background: var(--color-surface);
+  background: var(--grad-nav);
   border-top: 1px solid var(--color-border);
+  box-shadow: 0 -2px 12px oklch(0% 0 0 / 0.06);
   padding-bottom: env(safe-area-inset-bottom, 0);
 }
 
@@ -707,6 +724,7 @@ body {
 
 .nav-btn.active {
   color: var(--color-primary);
+  background: linear-gradient(180deg, oklch(92% 0.03 260 / 0.5), transparent);
 }
 
 .nav-icon {
@@ -722,7 +740,7 @@ body {
   height: 18px;
   padding: 0 5px;
   border-radius: 9px;
-  background: var(--color-danger);
+  background: linear-gradient(135deg, oklch(58% 0.22 20), oklch(50% 0.2 30));
   color: white;
   font-size: 0.65rem;
   font-weight: 700;
@@ -748,11 +766,12 @@ body {
 }
 
 .settings-group {
-  background: var(--color-surface);
+  background: linear-gradient(135deg, oklch(98% 0.005 220), oklch(100% 0 0));
   border-radius: var(--radius-md);
   padding: var(--space-md);
   margin-bottom: var(--space-md);
-  box-shadow: var(--shadow-sm);
+  box-shadow: var(--shadow-card);
+  border-left: 3px solid oklch(70% 0.08 220);
 }
 
 .settings-group-title {
