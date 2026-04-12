@@ -7,6 +7,7 @@ import { dirname, join } from 'node:path';
 import productsRouter from './src/routes/products.js';
 import printRouter from './src/routes/print.js';
 import printPdfRouter from './src/routes/print-pdf.js';
+import printPrnRouter from './src/routes/print-prn.js';
 import previewRouter from './src/routes/preview.js';
 import printerStatusRouter from './src/routes/printer-status.js';
 import settingsRouter from './src/routes/settings.js';
@@ -48,7 +49,12 @@ app.use((req, res, next) => {
       res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-App-Pin');
     }
   }
-  if (req.method === 'OPTIONS') return res.sendStatus(204);
+  if (req.method === 'OPTIONS') {
+    if (!res.getHeader('Access-Control-Allow-Origin')) {
+      return res.sendStatus(403);
+    }
+    return res.sendStatus(204);
+  }
   next();
 });
 
@@ -66,6 +72,7 @@ app.use(express.static(join(__dirname, 'public')));
 app.use('/api/products', productsRouter);
 app.use('/api/print', printLimiter, printRouter);
 app.use('/api/print-pdf', printLimiter, printPdfRouter);
+app.use('/api/print-prn', printLimiter, printPrnRouter);
 app.use('/api/preview', previewRouter);
 app.use('/api/printer/discover', discoverLimiter);
 app.use('/api/printer', printerStatusRouter);

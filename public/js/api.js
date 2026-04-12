@@ -67,6 +67,21 @@ export async function saveSettings(settings) {
   return res.json();
 }
 
+export async function downloadPrn(items) {
+  const res = await fetch('/api/print-prn', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ items }),
+  });
+
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
+    throw new Error(body.error || `HTTP ${res.status}`);
+  }
+
+  return res.blob();
+}
+
 export async function discoverPrinters() {
   const res = await request('/api/printer/discover', {
     headers: { ...authHeaders() },

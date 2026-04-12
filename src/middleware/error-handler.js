@@ -26,7 +26,7 @@ export function errorHandler(err, req, res, _next) {
   }
 
   if (err.message.includes('プリンター')) {
-    return res.status(503).json({ error: err.message });
+    return res.status(503).json({ error: 'プリンターエラーが発生しました。状態を確認してください。' });
   }
 
   res.status(500).json({ error: 'サーバーエラーが発生しました' });

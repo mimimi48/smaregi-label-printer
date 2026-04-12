@@ -47,8 +47,7 @@ export async function getAccessToken() {
   });
 
   if (!res.ok) {
-    const body = await res.text();
-    throw new Error(`スマレジ認証エラー (${res.status}): ${body}`);
+    throw new Error(`スマレジ認証エラー (${res.status})`);
   }
 
   const data = await res.json();

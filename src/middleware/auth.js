@@ -1,3 +1,4 @@
+import { timingSafeEqual } from 'node:crypto';
 import { getConfig } from '../config.js';
 
 /**
@@ -17,9 +18,19 @@ export function requirePin(req, res, next) {
 
   const submittedPin = req.headers['x-app-pin'] || req.body?.__pin;
 
-  if (!submittedPin || submittedPin !== storedPin) {
+  if (!submittedPin || typeof submittedPin !== 'string' || !pinMatches(submittedPin, storedPin)) {
     return res.status(401).json({ error: 'PINが正しくありません' });
   }
 
   next();
+}
+
+/**
+ * タイミングセーフなPIN比較
+ */
+function pinMatches(submitted, stored) {
+  const a = Buffer.from(submitted.padEnd(8, '\0'));
+  const b = Buffer.from(stored.padEnd(8, '\0'));
+  if (a.length !== b.length) return false;
+  return timingSafeEqual(a, b);
 }

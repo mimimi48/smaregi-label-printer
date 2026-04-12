@@ -1,4 +1,4 @@
-import { searchProducts, printLabels, getPrinterStatus, getPreviewUrl, getSettings, saveSettings, discoverPrinters, setStoredPin } from './api.js';
+import { searchProducts, printLabels, getPrinterStatus, getPreviewUrl, getSettings, saveSettings, discoverPrinters, setStoredPin, downloadPrn } from './api.js';
 
 // ── State ──
 
@@ -31,6 +31,7 @@ const previewImage = $('#previewImage');
 const printingOverlay = $('#printingOverlay');
 const printingStatus = $('#printingStatus');
 const airPrintArea = $('#airPrintArea');
+const printMethodModal = $('#printMethodModal');
 
 // ── Navigation ──
 
@@ -271,7 +272,8 @@ printAllBtn.addEventListener('click', async () => {
   if (queue.length === 0) return;
 
   if (printerConnectionType === 'airprint') {
-    await printWithAirPrint(queue);
+    // iOS: 印刷方法選択モーダルを表示
+    printMethodModal.hidden = false;
     return;
   }
 
@@ -280,6 +282,10 @@ printAllBtn.addEventListener('click', async () => {
     return;
   }
 
+  await printViaTcp();
+});
+
+async function printViaTcp() {
   printingOverlay.hidden = false;
   const total = queue.reduce((sum, item) => sum + item.quantity, 0);
   printingStatus.textContent = `印刷中… (${total}枚)`;
@@ -302,7 +308,55 @@ printAllBtn.addEventListener('click', async () => {
   } finally {
     printingOverlay.hidden = true;
   }
+}
+
+// ── Print Method Modal ──
+
+$('#closePrintMethod').addEventListener('click', () => {
+  printMethodModal.hidden = true;
 });
+
+printMethodModal.querySelector('.modal-backdrop').addEventListener('click', () => {
+  printMethodModal.hidden = true;
+});
+
+// AirPrint（ブラウザ印刷）
+$('#printMethodAirPrint').addEventListener('click', async () => {
+  printMethodModal.hidden = true;
+  await printWithAirPrint(queue);
+});
+
+// PRNダウンロード
+$('#printMethodPrn').addEventListener('click', async () => {
+  printMethodModal.hidden = true;
+  await printWithPrnDownload(queue);
+});
+
+async function printWithPrnDownload(items) {
+  printingOverlay.hidden = false;
+  printingStatus.textContent = 'PRNファイルを生成中…';
+
+  try {
+    const blob = await downloadPrn(items);
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'labels.prn';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    showToast('PRNファイルをダウンロードしました');
+    vibrate([100]);
+    saveToHistory(items);
+  } catch (err) {
+    showToast(`PRNダウンロードエラー: ${err.message}`, true);
+    vibrate([200, 100, 200]);
+  } finally {
+    printingOverlay.hidden = true;
+  }
+}
 
 async function printWithAirPrint(items) {
   printingOverlay.hidden = false;

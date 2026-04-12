@@ -81,15 +81,56 @@ export async function renderLabel(product, profile = null) {
 
 /**
  * ラベル画像をグレースケールのrawピクセルデータとして取得
+ * PNG中間バッファを経由せず、単一パイプラインで生成
  * @param {object} product
  * @param {object} [profile] - プリンタープロファイル
  * @returns {Promise<{data: Buffer, width: number, height: number}>}
  */
 export async function renderLabelRaw(product, profile = null) {
-  const labelPng = await renderLabel(product, profile);
+  const { productName, janCode } = product;
+  const width = profile?.printWidthDots ?? PRINT_WIDTH_DOTS;
+  const height = profile?.printHeightDots ?? PRINT_HEIGHT_DOTS;
+  const layout = profile?.layout ?? LAYOUT;
+
+  const barcodePng = await generateBarcode(janCode);
+  const fontSize = calculateFontSize(productName, layout);
+  const nameSvg = createTextSvg(productName, fontSize, layout);
+
+  const base = sharp({
+    create: {
+      width,
+      height,
+      channels: 4,
+      background: { r: 255, g: 255, b: 255, alpha: 1 },
+    },
+  });
+
+  const barcodeResized = await sharp(barcodePng)
+    .resize({
+      width: layout.barcode.width,
+      height: layout.barcode.height,
+      fit: 'contain',
+      background: { r: 255, g: 255, b: 255, alpha: 1 },
+    })
+    .toBuffer();
+
+  const barcodeLeft = Math.floor((width - layout.barcode.width) / 2);
 
   // byte 0=ヘッド右端のため、画像を水平反転してラスター方向に合わせる
-  const { data, info } = await sharp(labelPng)
+  // PNG中間エンコードなしの単一パイプライン
+  const { data, info } = await base
+    .composite([
+      {
+        input: Buffer.from(nameSvg),
+        top: layout.productName.y,
+        left: Math.floor((width - layout.productName.maxWidth) / 2),
+      },
+      {
+        input: barcodeResized,
+        top: layout.barcode.y,
+        left: barcodeLeft,
+      },
+    ])
     .flop()
     .greyscale()
     .raw()
