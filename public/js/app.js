@@ -338,20 +338,7 @@ async function printWithAirPrint(items) {
     $('.spinner').hidden = true;
 
     document.getElementById('airPrintBtn').addEventListener('click', () => {
-      // PDFをiframeに読み込んで直接印刷ダイアログを開く
-      const iframe = document.createElement('iframe');
-      iframe.style.cssText = 'position:fixed;left:-9999px;width:0;height:0';
-      iframe.src = url;
-      document.body.appendChild(iframe);
-      iframe.onload = () => {
-        try {
-          iframe.contentWindow.focus();
-          iframe.contentWindow.print();
-        } catch {
-          // iframe印刷できない場合はPDFを直接開く
-          window.open(url, '_blank');
-        }
-      };
+      window.open(url, '_blank');
     });
 
     document.getElementById('airPrintCloseBtn').addEventListener('click', () => {
