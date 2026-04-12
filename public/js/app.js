@@ -73,24 +73,28 @@ refreshBtn.addEventListener('click', async () => {
 const scanBtn = $('#scanBtn');
 const scannerContainer = $('#scannerContainer');
 const closeScannerBtn = $('#closeScannerBtn');
-let html5QrCode = null;
+const scannerVideo = $('#scannerVideo');
 
-scanBtn.addEventListener('click', async () => {
+let scannerStream = null;
+let scannerDetector = null;
+let scannerRAF = null;
+let useNativeDetector = false;
+
+// Native BarcodeDetector対応チェック
+try {
+  if ('BarcodeDetector' in window) {
+    const supported = await BarcodeDetector.getSupportedFormats();
+    const needed = ['ean_13', 'ean_8'].filter(f => supported.includes(f));
+    if (needed.length > 0) {
+      scannerDetector = new BarcodeDetector({ formats: needed });
+      useNativeDetector = true;
+    }
+  }
+} catch { /* Native API not available */ }
+
+scanBtn.addEventListener('click', () => {
   if (scannerContainer.hidden) {
-    scannerContainer.hidden = false;
-    if (!html5QrCode) {
-      html5QrCode = new Html5Qrcode('scanner');
-    }
-    try {
-      await html5QrCode.start(
-        { facingMode: 'environment' },
-        { fps: 10, qrbox: { width: 250, height: 100 } },
-        onScanSuccess
-      );
-    } catch (err) {
-      showToast('カメラを起動できません', true);
-      scannerContainer.hidden = true;
-    }
+    startScanner();
   } else {
     stopScanner();
   }
@@ -98,23 +102,164 @@ scanBtn.addEventListener('click', async () => {
 
 closeScannerBtn.addEventListener('click', stopScanner);
 
-async function stopScanner() {
-  if (html5QrCode) {
-    try { await html5QrCode.stop(); } catch { /* already stopped */ }
+async function startScanner() {
+  scannerContainer.hidden = false;
+  try {
+    scannerStream = await navigator.mediaDevices.getUserMedia({
+      video: {
+        facingMode: { ideal: 'environment' },
+        width: { ideal: 1280 },
+        height: { ideal: 720 },
+        frameRate: { ideal: 30 },
+      },
+      audio: false,
+    });
+
+    scannerVideo.srcObject = scannerStream;
+
+    // 連続オートフォーカス設定
+    setTimeout(() => {
+      try {
+        const track = scannerStream.getVideoTracks()[0];
+        const caps = track.getCapabilities();
+        const adv = {};
+        if (caps.focusMode && caps.focusMode.includes('continuous')) {
+          adv.focusMode = 'continuous';
+        }
+        if (caps.exposureMode && caps.exposureMode.includes('continuous')) {
+          adv.exposureMode = 'continuous';
+        }
+        if (Object.keys(adv).length > 0) {
+          track.applyConstraints({ advanced: [adv] });
+        }
+      } catch { /* capabilities not supported */ }
+    }, 800);
+
+    if (useNativeDetector) {
+      startNativeDetection();
+    } else {
+      startQuaggaDetection();
+    }
+  } catch (err) {
+    const msg = (err.name === 'NotAllowedError' || String(err).includes('Permission'))
+      ? 'カメラの使用を許可してください（設定 > Safari > カメラ）'
+      : 'カメラを起動できません';
+    showToast(msg, true);
+    scannerContainer.hidden = true;
   }
+}
+
+function startNativeDetection() {
+  const detect = () => {
+    if (!scannerStream) return;
+    scannerDetector.detect(scannerVideo).then((barcodes) => {
+      if (barcodes.length > 0) {
+        onScanSuccess(barcodes[0].rawValue);
+        return;
+      }
+      // 次のフレームをスケジュール
+      if ('requestVideoFrameCallback' in scannerVideo) {
+        scannerVideo.requestVideoFrameCallback(detect);
+      } else {
+        scannerRAF = requestAnimationFrame(detect);
+      }
+    }).catch(() => {
+      scannerRAF = requestAnimationFrame(detect);
+    });
+  };
+
+  if ('requestVideoFrameCallback' in scannerVideo) {
+    scannerVideo.requestVideoFrameCallback(detect);
+  } else {
+    scannerRAF = requestAnimationFrame(detect);
+  }
+}
+
+function startQuaggaDetection() {
+  Quagga.init({
+    inputStream: {
+      name: 'Live',
+      type: 'LiveStream',
+      target: $('#scanner'),
+      constraints: {
+        facingMode: 'environment',
+        width: { ideal: 1280 },
+        height: { ideal: 720 },
+      },
+      area: { top: '25%', right: '10%', left: '10%', bottom: '25%' },
+    },
+    decoder: {
+      readers: ['ean_reader', 'ean_8_reader', 'code_128_reader'],
+      multiple: false,
+    },
+    locate: true,
+    locator: { patchSize: 'medium', halfSample: true },
+    frequency: 10,
+  }, (err) => {
+    if (err) {
+      showToast('スキャナーの初期化に失敗しました', true);
+      return;
+    }
+    Quagga.start();
+    Quagga.onDetected((result) => {
+      if (result.codeResult && result.codeResult.code) {
+        onScanSuccess(result.codeResult.code);
+      }
+    });
+  });
+}
+
+function stopScanner() {
+  if (scannerRAF) {
+    cancelAnimationFrame(scannerRAF);
+    scannerRAF = null;
+  }
+  if (scannerStream) {
+    scannerStream.getTracks().forEach(t => t.stop());
+    scannerStream = null;
+  }
+  scannerVideo.srcObject = null;
+
+  // Quaggaが動いていれば停止
+  try { Quagga.stop(); Quagga.offDetected(); } catch { /* not running */ }
+  // Quaggaが生成したvideo/canvasを削除
+  $('#scanner').querySelectorAll('video:not(#scannerVideo), canvas').forEach(el => el.remove());
+
   scannerContainer.hidden = true;
 }
 
-async function onScanSuccess(decodedText) {
-  await stopScanner();
+function playBeep() {
+  try {
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.frequency.value = 880;
+    gain.gain.value = 0.3;
+    osc.start();
+    osc.stop(ctx.currentTime + 0.1);
+  } catch { /* audio not supported */ }
+}
+
+function onScanSuccess(decodedText) {
+  stopScanner();
+  playBeep();
+  vibrate([100]);
   // スキャンしたコードで検索
   searchInput.value = decodedText;
   searchQuery = decodedText;
   searchPage = 1;
   productList.innerHTML = '';
   performSearch();
-  vibrate([100]);
 }
+
+// カメラ解放: タブ切り替え時
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden && scannerStream) {
+    stopScanner();
+  }
+});
 
 // ── Search ──
 
@@ -408,6 +553,8 @@ async function printWithAirPrint(items) {
       printingOverlay.hidden = true;
       $('.spinner').hidden = false;
       URL.revokeObjectURL(url);
+      queue = [];
+      renderQueue();
     });
 
     saveToHistory(items);
