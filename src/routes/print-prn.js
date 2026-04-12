@@ -101,11 +101,9 @@ async function buildPrn(items) {
     for (let i = 0; i < item.quantity; i++) {
       labelIndex++;
       const isLast = labelIndex === totalLabels;
-      buffers.push(encodeLabel(bitmap, {
-        autoCut: config.autoCut,
-        cutAtEnd: isLast,
-        profile,
-      }));
+      const autoCut = config.cutMode === 'each';
+      const cutAtEnd = config.cutMode !== 'none' && isLast;
+      buffers.push(encodeLabel(bitmap, { autoCut, cutAtEnd, profile }));
     }
   }
 

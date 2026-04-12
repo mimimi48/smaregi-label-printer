@@ -68,7 +68,9 @@ router.post('/', async (req, res, next) => {
         for (let i = 0; i < quantity; i++) {
           printIndex++;
           const isLastPrint = printIndex === totalPrints;
-          const printData = encodeLabel(bitmap, { autoCut: config.autoCut, cutAtEnd: isLastPrint, profile });
+          const autoCut = config.cutMode === 'each';
+          const cutAtEnd = config.cutMode !== 'none' && isLastPrint;
+          const printData = encodeLabel(bitmap, { autoCut, cutAtEnd, profile });
           await sendToConfiguredPrinter(printData);
           printed++;
         }

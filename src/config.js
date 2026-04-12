@@ -17,7 +17,7 @@ const DEFAULTS = {
   labelSize: '49x24',
   printerIp: '',
   printerPort: 9100,
-  autoCut: false,
+  cutMode: 'end',
   port: 3000,
   appPin: '',
 };
@@ -66,7 +66,7 @@ export function getPublicConfig() {
     labelSize: config.labelSize,
     printerIp: config.printerIp,
     printerPort: config.printerPort,
-    autoCut: config.autoCut,
+    cutMode: config.cutMode,
     pinConfigured: !!config.appPin,
     configured: !!(config.smaregiContractId && config.smaregiClientId && config.smaregiClientSecret && isPrinterConfigured(config)),
     availableProfiles: getModelList(),
@@ -87,7 +87,7 @@ function loadConfig() {
     labelSize: file.labelSize || DEFAULTS.labelSize,
     printerIp: file.printerIp || process.env.PRINTER_IP || DEFAULTS.printerIp,
     printerPort: file.printerPort || Number(process.env.PRINTER_PORT) || DEFAULTS.printerPort,
-    autoCut: file.autoCut ?? DEFAULTS.autoCut,
+    cutMode: normalizeCutMode(file.cutMode, file.autoCut),
     port: Number(process.env.PORT) || DEFAULTS.port,
     appPin: file.appPin || '',
   };
@@ -104,6 +104,18 @@ function loadFromFile() {
 
 function normalizePrinterConnectionType(value) {
   return value === 'airprint' ? 'airprint' : DEFAULTS.printerConnectionType;
+}
+
+/**
+ * カットモードを正規化（旧autoCutからの移行にも対応）
+ */
+function normalizeCutMode(cutMode, legacyAutoCut) {
+  if (cutMode && ['none', 'end', 'each'].includes(cutMode)) {
+    return cutMode;
+  }
+  // 旧設定からの移行: autoCut=true → 'each', false → 'end'
+  if (legacyAutoCut === true) return 'each';
+  return DEFAULTS.cutMode;
 }
 
 function isPrinterConfigured(config) {

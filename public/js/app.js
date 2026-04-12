@@ -525,8 +525,7 @@ const settingClientId = $('#settingClientId');
 const settingClientSecret = $('#settingClientSecret');
 const saveSettingsBtn = $('#saveSettingsBtn');
 const settingsStatus = $('#settingsStatus');
-const settingAutoCut = $('#settingAutoCut');
-const autoCutLabel = $('#autoCutLabel');
+const settingCutMode = $('#settingCutMode');
 const discoverPrinterBtn = $('#discoverPrinterBtn');
 const discoverResult = $('#discoverResult');
 
@@ -553,8 +552,7 @@ async function loadSettings() {
     settingClientId.value = config.smaregiClientId || '';
     settingClientSecret.value = config.smaregiClientSecret || '';
     updatePrinterConnectionFields();
-    settingAutoCut.checked = config.autoCut || false;
-    autoCutLabel.textContent = config.autoCut ? 'ON' : 'OFF';
+    settingCutMode.value = config.cutMode || 'end';
     settingsForm.hidden = false;
     pinGate.hidden = true;
   } catch (err) {
@@ -615,10 +613,6 @@ settingPrinterModel.addEventListener('change', () => {
   updateLabelSizeOptions();
 });
 
-settingAutoCut.addEventListener('change', () => {
-  autoCutLabel.textContent = settingAutoCut.checked ? 'ON' : 'OFF';
-});
-
 loadSettings();
 
 settingPrinterConnectionType.addEventListener('change', updatePrinterConnectionFields);
@@ -641,7 +635,7 @@ saveSettingsBtn.addEventListener('click', async () => {
       printerConnectionType: settingPrinterConnectionType.value,
       printerIp: settingPrinterIp.value,
       printerPort: settingPrinterPort.value,
-      autoCut: settingAutoCut.checked,
+      cutMode: settingCutMode.value,
       smaregiContractId: settingContractId.value,
       smaregiClientId: settingClientId.value,
       smaregiClientSecret: settingClientSecret.value,

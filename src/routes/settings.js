@@ -32,7 +32,7 @@ router.post('/', requirePin, (req, res, next) => {
       labelSize,
       printerIp,
       printerPort,
-      autoCut,
+      cutMode,
       appPin,
     } = req.body;
 
@@ -98,9 +98,12 @@ router.post('/', requirePin, (req, res, next) => {
       updates.printerPort = port;
     }
 
-    // オートカット設定
-    if (autoCut !== undefined) {
-      updates.autoCut = !!autoCut;
+    // カットモード設定
+    if (cutMode !== undefined) {
+      if (!['none', 'end', 'each'].includes(cutMode)) {
+        return res.status(400).json({ error: 'カット設定が無効です' });
+      }
+      updates.cutMode = cutMode;
     }
 
     // PIN設定（4〜8桁の数字）
