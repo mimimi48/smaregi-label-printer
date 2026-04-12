@@ -9,8 +9,8 @@ const router = Router();
  */
 router.get('/', async (req, res, next) => {
   try {
-    const query = req.query.q || '';
-    const page = parseInt(req.query.page, 10) || 1;
+    const query = String(req.query.q || '').slice(0, 100).trim();
+    const page = Math.max(1, parseInt(req.query.page, 10) || 1);
 
     const result = await searchProducts(query, { page });
 

@@ -37,8 +37,8 @@ app.use(helmet({
 }));
 
 // ミドルウェア
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '512kb' }));
+app.use(express.urlencoded({ extended: true, limit: '512kb' }));
 
 // CORS — 同一オリジンのみ許可
 app.use((req, res, next) => {

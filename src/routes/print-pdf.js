@@ -26,6 +26,13 @@ router.post('/', async (req, res, next) => {
       return res.status(400).json({ error: '印刷する商品を指定してください' });
     }
 
+    // アイテム数と合計枚数を制限
+    items = items.slice(0, 50);
+    const totalPages = items.reduce((sum, i) => sum + Math.min(Math.max(1, i.quantity || 1), 50), 0);
+    if (totalPages > 200) {
+      return res.status(400).json({ error: '一度に印刷できるのは200枚までです' });
+    }
+
     const config = getConfig();
     const profile = getProfile(config.printerModel, config.labelSize);
     const pageWidth = profile.widthMm * MM_TO_PT;
