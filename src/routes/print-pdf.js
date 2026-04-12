@@ -1,4 +1,3 @@
-import { randomBytes } from 'node:crypto';
 import { Router } from 'express';
 import { PDFDocument } from 'pdf-lib';
 import { renderLabel } from '../label/renderer.js';
@@ -12,7 +11,8 @@ const MM_TO_PT = 72 / 25.4;
 
 /**
  * POST /api/print-pdf
- * AirPrint用: ラベルPDFを埋め込んだ印刷ページを返す
+ * AirPrint用: ラベル画像を正しい用紙サイズのPDFとして返す
+ * iOSがPDFのページサイズをそのまま使うため、用紙サイズ不一致が起きない
  * Body: { items: [{ productName, janCode, quantity }] }
  */
 router.post('/', async (req, res, next) => {
@@ -44,6 +44,7 @@ router.post('/', async (req, res, next) => {
       for (let i = 0; i < quantity; i++) {
         const page = pdfDoc.addPage([pageWidth, pageHeight]);
 
+        // ラベル画像をページ全体にフィット（アスペクト比維持）
         const imgAspect = pngImage.width / pngImage.height;
         const pageAspect = pageWidth / pageHeight;
 
@@ -74,97 +75,11 @@ router.post('/', async (req, res, next) => {
     }
 
     const pdfBytes = await pdfDoc.save();
-    const pdfBase64 = Buffer.from(pdfBytes).toString('base64');
-    const pageCount = pdfDoc.getPageCount();
-    const nonce = randomBytes(16).toString('base64');
 
-    res.set('Content-Security-Policy',
-      `default-src 'none'; script-src 'nonce-${nonce}'; style-src 'unsafe-inline'; frame-src blob: data:; frame-ancestors 'none'`
-    );
-    res.set('Content-Type', 'text/html; charset=utf-8');
-    res.send(`<!DOCTYPE html>
-<html lang="ja">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ラベル印刷 (${pageCount}枚)</title>
-<style>
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body {
-    font-family: -apple-system, BlinkMacSystemFont, sans-serif;
-    background: #f5f5f5;
-    min-height: 100dvh;
-    display: flex;
-    flex-direction: column;
-  }
-  .toolbar {
-    position: sticky;
-    top: 0;
-    z-index: 10;
-    background: white;
-    padding: 12px 16px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    border-bottom: 1px solid #ddd;
-    gap: 12px;
-  }
-  .toolbar-info {
-    font-size: 15px;
-    font-weight: 600;
-    color: #333;
-  }
-  .btn-print {
-    padding: 10px 28px;
-    background: #4466cc;
-    color: white;
-    border: none;
-    border-radius: 8px;
-    font-size: 16px;
-    font-weight: 700;
-    cursor: pointer;
-    flex-shrink: 0;
-  }
-  .btn-print:active { background: #3355bb; }
-  .pdf-container {
-    flex: 1;
-    display: flex;
-    justify-content: center;
-    padding: 16px;
-  }
-  .pdf-container iframe {
-    width: 100%;
-    max-width: 600px;
-    height: calc(100dvh - 80px);
-    border: 1px solid #ddd;
-    border-radius: 8px;
-    background: white;
-  }
-</style>
-</head>
-<body>
-<div class="toolbar">
-  <span class="toolbar-info">${pageCount}枚のラベル</span>
-  <button class="btn-print" id="printBtn">プリント</button>
-</div>
-<div class="pdf-container">
-  <iframe id="pdfFrame" src="data:application/pdf;base64,${pdfBase64}"></iframe>
-</div>
-<script nonce="${nonce}">
-document.getElementById('printBtn').addEventListener('click', function() {
-  var frame = document.getElementById('pdfFrame');
-  try {
-    frame.contentWindow.focus();
-    frame.contentWindow.print();
-  } catch(e) {
-    // クロスオリジンでiframe印刷できない場合はPDFを直接開く
-    var blob = new Blob([Uint8Array.from(atob('${pdfBase64}'), function(c){return c.charCodeAt(0)})], {type:'application/pdf'});
-    window.open(URL.createObjectURL(blob), '_blank');
-  }
-});
-</script>
-</body>
-</html>`);
+    res.set('Content-Type', 'application/pdf');
+    res.set('Content-Disposition', 'inline; filename="labels.pdf"');
+    res.set('Cache-Control', 'no-cache');
+    res.send(Buffer.from(pdfBytes));
   } catch (err) {
     next(err);
   }
