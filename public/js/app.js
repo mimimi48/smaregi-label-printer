@@ -1,4 +1,4 @@
-import { searchProducts, refreshProducts, printLabels, getPrinterStatus, getPreviewUrl, getSettings, saveSettings, discoverPrinters, setStoredPin } from './api.js';
+import { searchProducts, refreshProducts, printLabels, getPrinterStatus, getPreviewUrl, getSettings, saveSettings, discoverPrinters, setStoredPin, fetchTemplates, saveTemplates as saveTemplatesApi } from './api.js';
 
 // ── State ──
 
@@ -764,7 +764,6 @@ function loadQueue() {
 
 // ── Templates ──
 
-const TEMPLATE_KEY = 'label-print-templates';
 const templateList = $('#templateList');
 const templateBadge = $('#templateBadge');
 const newTemplateBtn = $('#newTemplateBtn');
@@ -779,17 +778,23 @@ const templateView = $('#templateView');
 
 let editingTemplateId = null;
 let editingTemplateItems = [];
+let cachedTemplates = [];
 
 function loadTemplates() {
+  return cachedTemplates;
+}
+
+async function reloadTemplates() {
   try {
-    return JSON.parse(localStorage.getItem(TEMPLATE_KEY) || '[]');
+    cachedTemplates = await fetchTemplates();
   } catch {
-    return [];
+    cachedTemplates = [];
   }
 }
 
 function persistTemplates(templates) {
-  try { localStorage.setItem(TEMPLATE_KEY, JSON.stringify(templates)); } catch { /* quota exceeded */ }
+  cachedTemplates = templates;
+  saveTemplatesApi(templates).catch(() => {});
 }
 
 // ── テンプレート一覧 ──
@@ -1030,8 +1035,20 @@ function renderTemplateEditItems() {
   });
 }
 
-// 初期描画
-renderTemplates();
+// 初期描画（サーバーからテンプレート取得、localStorage→サーバー移行）
+reloadTemplates().then(async () => {
+  const LOCAL_KEY = 'label-print-templates';
+  try {
+    const local = JSON.parse(localStorage.getItem(LOCAL_KEY) || '[]');
+    if (local.length > 0 && cachedTemplates.length === 0) {
+      persistTemplates(local);
+      localStorage.removeItem(LOCAL_KEY);
+    } else if (local.length > 0) {
+      localStorage.removeItem(LOCAL_KEY);
+    }
+  } catch { /* ignore */ }
+  renderTemplates();
+});
 
 // 初期表示で履歴を表示
 showHistory();

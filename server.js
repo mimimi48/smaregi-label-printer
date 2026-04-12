@@ -12,6 +12,7 @@ import printPrnRouter from './src/routes/print-prn.js';
 import previewRouter from './src/routes/preview.js';
 import printerStatusRouter from './src/routes/printer-status.js';
 import settingsRouter from './src/routes/settings.js';
+import templatesRouter from './src/routes/templates.js';
 import { errorHandler } from './src/middleware/error-handler.js';
 import { getConfig } from './src/config.js';
 
@@ -78,6 +79,7 @@ app.use('/api/preview', previewRouter);
 app.use('/api/printer/discover', discoverLimiter);
 app.use('/api/printer', printerStatusRouter);
 app.use('/api/settings', settingsLimiter, settingsRouter);
+app.use('/api/templates', templatesRouter);
 
 // エラーハンドラー
 app.use(errorHandler);

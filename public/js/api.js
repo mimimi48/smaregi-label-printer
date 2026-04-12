@@ -93,3 +93,17 @@ export async function discoverPrinters() {
   });
   return res.json();
 }
+
+export async function fetchTemplates() {
+  const res = await request('/api/templates');
+  return res.json();
+}
+
+export async function saveTemplates(templates) {
+  const res = await request('/api/templates', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(templates),
+  });
+  return res.json();
+}
