@@ -360,26 +360,32 @@ async function printWithPrnDownload(items) {
 
 async function printWithAirPrint(items) {
   printingOverlay.hidden = false;
-  printingStatus.textContent = 'AirPrintを準備中…';
+  printingStatus.textContent = 'PDFを生成中…';
 
   try {
-    // フォーム送信で新しいタブに印刷用HTMLを開く
-    const form = document.createElement('form');
-    form.method = 'POST';
-    form.action = '/api/print-pdf';
-    form.target = '_blank';
-    const input = document.createElement('input');
-    input.type = 'hidden';
-    input.name = 'items';
-    input.value = JSON.stringify(items);
-    form.appendChild(input);
-    document.body.appendChild(form);
-    form.submit();
-    document.body.removeChild(form);
+    const res = await fetch('/api/print-pdf', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ items }),
+    });
+
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
+      throw new Error(body.error || `HTTP ${res.status}`);
+    }
+
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+
+    // PDFを新しいタブで開く → iOSが自動でプレビュー＆印刷ボタンを表示
+    window.open(url, '_blank');
 
     printingOverlay.hidden = true;
-    showToast('印刷ページが開きます。「印刷する」ボタンを押してください');
+    showToast('PDFが開きます。共有→プリントで印刷してください');
     saveToHistory(items);
+
+    // メモリ解放（少し遅延させてタブが読み込むまで待つ）
+    setTimeout(() => URL.revokeObjectURL(url), 10_000);
   } catch (err) {
     showToast(`AirPrint準備エラー: ${err.message}`, true);
   } finally {
