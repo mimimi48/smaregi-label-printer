@@ -621,6 +621,7 @@ function updatePrinterConnectionFields() {
   const useAirPrint = settingPrinterConnectionType.value === 'airprint';
   tcpPrinterFields.hidden = useAirPrint;
   airPrintFields.hidden = !useAirPrint;
+  $('#cutModeHelp').hidden = !useAirPrint;
 }
 
 saveSettingsBtn.addEventListener('click', async () => {
