@@ -310,7 +310,7 @@ async function printViaTcp() {
 
 async function printWithAirPrint(items) {
   printingOverlay.hidden = false;
-  printingStatus.textContent = 'PDFを生成中…';
+  printingStatus.innerHTML = '<span>PDFを生成中…</span>';
 
   try {
     const res = await fetch('/api/print-pdf', {
@@ -326,19 +326,30 @@ async function printWithAirPrint(items) {
 
     const blob = await res.blob();
     const url = URL.createObjectURL(blob);
+    const total = items.reduce((sum, item) => sum + (item.quantity || 1), 0);
 
-    // PDFを新しいタブで開く → iOSが自動でプレビュー＆印刷ボタンを表示
-    window.open(url, '_blank');
+    // スピナーを消して印刷ボタンを表示
+    printingStatus.innerHTML = `
+      <p style="font-size:1.1rem;margin-bottom:16px">${total}枚のラベルPDFを生成しました</p>
+      <button id="airPrintBtn" class="btn btn-primary btn-lg" style="width:100%;max-width:280px;margin-bottom:12px">プリント</button>
+      <br>
+      <button id="airPrintCloseBtn" class="btn btn-ghost" style="color:white">閉じる</button>
+    `;
+    $('.spinner').hidden = true;
 
-    printingOverlay.hidden = true;
-    showToast('PDFが開きます。共有→プリントで印刷してください');
+    document.getElementById('airPrintBtn').addEventListener('click', () => {
+      window.open(url, '_blank');
+    });
+
+    document.getElementById('airPrintCloseBtn').addEventListener('click', () => {
+      printingOverlay.hidden = true;
+      $('.spinner').hidden = false;
+      URL.revokeObjectURL(url);
+    });
+
     saveToHistory(items);
-
-    // メモリ解放（少し遅延させてタブが読み込むまで待つ）
-    setTimeout(() => URL.revokeObjectURL(url), 10_000);
   } catch (err) {
     showToast(`AirPrint準備エラー: ${err.message}`, true);
-  } finally {
     printingOverlay.hidden = true;
   }
 }
