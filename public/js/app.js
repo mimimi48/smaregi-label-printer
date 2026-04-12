@@ -309,49 +309,22 @@ async function printViaTcp() {
 }
 
 async function printWithAirPrint(items) {
-  printingOverlay.hidden = false;
-  printingStatus.innerHTML = '<span>PDFを生成中…</span>';
+  // フォーム送信で印刷ページを新しいタブに開く
+  const form = document.createElement('form');
+  form.method = 'POST';
+  form.action = '/api/print-pdf';
+  form.target = '_blank';
+  const input = document.createElement('input');
+  input.type = 'hidden';
+  input.name = 'items';
+  input.value = JSON.stringify(items);
+  form.appendChild(input);
+  document.body.appendChild(form);
+  form.submit();
+  document.body.removeChild(form);
 
-  try {
-    const res = await fetch('/api/print-pdf', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ items }),
-    });
-
-    if (!res.ok) {
-      const body = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
-      throw new Error(body.error || `HTTP ${res.status}`);
-    }
-
-    const blob = await res.blob();
-    const url = URL.createObjectURL(blob);
-    const total = items.reduce((sum, item) => sum + (item.quantity || 1), 0);
-
-    // スピナーを消して印刷ボタンを表示
-    printingStatus.innerHTML = `
-      <p style="font-size:1.1rem;margin-bottom:16px">${total}枚のラベルPDFを生成しました</p>
-      <button id="airPrintBtn" class="btn btn-primary btn-lg" style="width:100%;max-width:280px;margin-bottom:12px">プリント</button>
-      <br>
-      <button id="airPrintCloseBtn" class="btn btn-ghost" style="color:white">閉じる</button>
-    `;
-    $('.spinner').hidden = true;
-
-    document.getElementById('airPrintBtn').addEventListener('click', () => {
-      window.open(url, '_blank');
-    });
-
-    document.getElementById('airPrintCloseBtn').addEventListener('click', () => {
-      printingOverlay.hidden = true;
-      $('.spinner').hidden = false;
-      URL.revokeObjectURL(url);
-    });
-
-    saveToHistory(items);
-  } catch (err) {
-    showToast(`AirPrint準備エラー: ${err.message}`, true);
-    printingOverlay.hidden = true;
-  }
+  saveToHistory(items);
+  showToast('印刷ページが開きました');
 }
 
 function applyPrintPageSize() {
