@@ -117,15 +117,16 @@
         <div id="airPrintFields" hidden>
           <p class="field-help">印刷時にiPad/iPhoneの印刷画面が開きます。BrotherをAirPrint対応プリンターとして同じWi-Fiに接続してください。</p>
         </div>
-        <label class="field">
-          <span class="field-label">カット設定</span>
-          <select id="settingCutMode">
-            <option value="none">カットしない</option>
-            <option value="end">最後のラベルだけカット</option>
-            <option value="each">毎枚カット</option>
-          </select>
-        </label>
-        <p class="field-help" id="cutModeHelp" hidden>AirPrintではプリンター本体のカット設定が適用されます。この設定はPRNダウンロード時のみ有効です。</p>
+        <div id="cutModeField">
+          <label class="field">
+            <span class="field-label">カット設定</span>
+            <select id="settingCutMode">
+              <option value="none">カットしない</option>
+              <option value="end">最後のラベルだけカット</option>
+              <option value="each">毎枚カット</option>
+            </select>
+          </label>
+        </div>
       </div>
 
       <div class="settings-group">
@@ -173,37 +174,6 @@
         </div>
         <div class="modal-footer">
           <button class="btn btn-ghost" id="cancelPreview">閉じる</button>
-        </div>
-      </div>
-    </div>
-
-    <!-- iOS印刷方法選択モーダル -->
-    <div class="modal" id="printMethodModal" hidden>
-      <div class="modal-backdrop"></div>
-      <div class="modal-content">
-        <div class="modal-header">
-          <h3>印刷方法を選択</h3>
-          <button class="btn-close" id="closePrintMethod">&times;</button>
-        </div>
-        <div class="print-method-body">
-          <button class="print-method-option" id="printMethodAirPrint">
-            <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.5">
-              <rect x="6" y="14" width="12" height="6" rx="1"/>
-              <path d="M6 17H4a2 2 0 01-2-2v-4a2 2 0 012-2h16a2 2 0 012 2v4a2 2 0 01-2 2h-2"/>
-              <path d="M6 9V4a1 1 0 011-1h10a1 1 0 011 1v5"/>
-            </svg>
-            <span class="print-method-label">AirPrint</span>
-            <span class="print-method-desc">ブラウザの印刷機能で直接印刷</span>
-          </button>
-          <button class="print-method-option" id="printMethodPrn">
-            <svg viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="currentColor" stroke-width="1.5">
-              <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
-              <polyline points="7 10 12 15 17 10"/>
-              <line x1="12" y1="15" x2="12" y2="3"/>
-            </svg>
-            <span class="print-method-label">PRNダウンロード</span>
-            <span class="print-method-desc">Smooth Print等のアプリで印刷</span>
-          </button>
         </div>
       </div>
     </div>

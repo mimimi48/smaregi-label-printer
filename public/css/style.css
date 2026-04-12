@@ -754,48 +754,6 @@ body {
   margin-top: 2px;
 }
 
-/* ── Print Method Modal ── */
-
-.print-method-body {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-sm);
-  padding: var(--space-md);
-}
-
-.print-method-option {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--space-xs);
-  padding: var(--space-lg) var(--space-md);
-  border: 2px solid var(--color-border);
-  border-radius: var(--radius-md);
-  background: var(--color-surface);
-  cursor: pointer;
-  transition: border-color 0.15s, background 0.15s;
-  color: var(--color-text);
-}
-
-.print-method-option:active {
-  border-color: var(--color-primary);
-  background: oklch(50% 0.18 260 / 0.04);
-}
-
-.print-method-option svg {
-  color: var(--color-primary);
-}
-
-.print-method-label {
-  font-size: 1rem;
-  font-weight: 700;
-}
-
-.print-method-desc {
-  font-size: 0.8rem;
-  color: var(--color-text-secondary);
-}
-
 #airPrintArea {
   display: none;
 }
