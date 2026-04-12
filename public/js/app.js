@@ -34,15 +34,23 @@ const airPrintArea = $('#airPrintArea');
 
 // ── Navigation ──
 
+function switchView(viewId) {
+  $$('.view').forEach((v) => v.classList.remove('active'));
+  $(`.view#${viewId}`).classList.add('active');
+  $$('.nav-btn').forEach((b) => b.classList.remove('active'));
+  $(`[data-view="${viewId}"]`).classList.add('active');
+  try { localStorage.setItem('active-view', viewId); } catch { /* ignore */ }
+}
+
 $$('.nav-btn').forEach((btn) => {
-  btn.addEventListener('click', () => {
-    const viewId = btn.dataset.view;
-    $$('.view').forEach((v) => v.classList.remove('active'));
-    $(`.view#${viewId}`).classList.add('active');
-    $$('.nav-btn').forEach((b) => b.classList.remove('active'));
-    btn.classList.add('active');
-  });
+  btn.addEventListener('click', () => switchView(btn.dataset.view));
 });
+
+// リロード時にタブ復元
+try {
+  const saved = localStorage.getItem('active-view');
+  if (saved && $(`#${saved}`)) switchView(saved);
+} catch { /* ignore */ }
 
 // ── Refresh Products ──
 
@@ -941,7 +949,9 @@ async function reloadTemplates() {
 
 function persistTemplates(templates) {
   cachedTemplates = templates;
-  saveTemplatesApi(templates).catch(() => {});
+  saveTemplatesApi(templates).catch((err) => {
+    showToast('テンプレート保存エラー: ' + err.message, true);
+  });
 }
 
 // ── テンプレート一覧 ──
