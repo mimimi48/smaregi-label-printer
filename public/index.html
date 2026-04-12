@@ -111,20 +111,20 @@
             <span class="field-label">ポート</span>
             <input type="number" id="settingPrinterPort" placeholder="9100" inputmode="numeric">
           </label>
-          <label class="field">
-            <span class="field-label">カット設定</span>
-            <select id="settingCutMode">
-              <option value="none">カットしない</option>
-              <option value="end">最後のラベルだけカット</option>
-              <option value="each">毎枚カット</option>
-            </select>
-          </label>
           <button class="btn btn-ghost btn-sm" id="discoverPrinterBtn">LANプリンターを自動検出</button>
           <div id="discoverResult" class="discover-result" hidden></div>
         </div>
         <div id="airPrintFields" hidden>
           <p class="field-help">印刷時にiPad/iPhoneの印刷画面が開きます。BrotherをAirPrint対応プリンターとして同じWi-Fiに接続してください。</p>
         </div>
+        <label class="field">
+          <span class="field-label">カット設定</span>
+          <select id="settingCutMode">
+            <option value="none">カットしない</option>
+            <option value="end">最後のラベルだけカット</option>
+            <option value="each">毎枚カット</option>
+          </select>
+        </label>
       </div>
 
       <div class="settings-group">
