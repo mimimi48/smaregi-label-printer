@@ -32,6 +32,11 @@ export async function searchProducts(query, page = 1) {
   return res.json();
 }
 
+export async function refreshProducts() {
+  const res = await request('/api/products/refresh', { method: 'POST' });
+  return res.json();
+}
+
 export async function printLabels(items) {
   const res = await request('/api/print', {
     method: 'POST',

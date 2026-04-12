@@ -1,6 +1,68 @@
 import { getAccessToken } from './auth.js';
 import { getConfig } from '../config.js';
 
+// ── 商品マスタキャッシュ ──
+// 初回検索時にスマレジAPIから全商品を取得し、メモリに保持する。
+// キャッシュは10分間有効。設定変更時にも無効化される。
+const CACHE_TTL_MS = 10 * 60 * 1000;
+let productCache = null;
+let cacheExpiresAt = 0;
+
+/**
+ * キャッシュを明示的にクリア（設定変更時などに使用）
+ */
+export function clearProductCache() {
+  productCache = null;
+  cacheExpiresAt = 0;
+}
+
+/**
+ * 全商品マスタを取得（キャッシュ付き）
+ */
+async function getAllProducts() {
+  if (productCache && Date.now() < cacheExpiresAt) {
+    return productCache;
+  }
+
+  const config = getConfig();
+  const contractId = config.smaregiContractId;
+  const apiBase = config.smaregiApiHost;
+  const token = await getAccessToken();
+
+  const all = [];
+  const fetchLimit = 1000;
+  let fetchPage = 1;
+
+  while (true) {
+    const params = new URLSearchParams({
+      limit: String(fetchLimit),
+      page: String(fetchPage),
+      fields: 'productId,productCode,productName,groupCode,price,categoryId',
+    });
+
+    const url = `${apiBase}/${contractId}/pos/products?${params}`;
+    const res = await fetch(url, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    if (!res.ok) {
+      const body = await res.text();
+      throw new Error(`スマレジAPI エラー (${res.status}): ${body}`);
+    }
+
+    const products = await res.json();
+    all.push(...products);
+
+    if (products.length < fetchLimit) break;
+    fetchPage++;
+  }
+
+  productCache = all.map(normalizeProduct);
+  cacheExpiresAt = Date.now() + CACHE_TTL_MS;
+
+  return productCache;
+}
+
 /**
  * スマレジから商品を検索
  * @param {string} query - 検索キーワード
@@ -11,56 +73,26 @@ import { getConfig } from '../config.js';
  */
 export async function searchProducts(query, options = {}) {
   const { page = 1, limit = 20 } = options;
-  const config = getConfig();
-  const contractId = config.smaregiContractId;
-  const apiBase = config.smaregiApiHost;
 
-  const token = await getAccessToken();
+  const all = await getAllProducts();
 
-  const params = new URLSearchParams({
-    limit: String(limit),
-    page: String(page),
-    fields: 'productId,productCode,productName,groupCode,price,categoryId',
-  });
-
-  // 数字のみならコード検索、それ以外は全件取得後にフィルタ
-  const isCodeSearch = query && /^\d+$/.test(query);
-  if (isCodeSearch) {
-    params.set('product_code', query);
-  }
-
-  const url = `${apiBase}/${contractId}/pos/products?${params}`;
-
-  const res = await fetch(url, {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
-  });
-
-  if (!res.ok) {
-    const body = await res.text();
-    throw new Error(`スマレジAPI エラー (${res.status}): ${body}`);
-  }
-
-  let products = await res.json();
-
-  // 商品名検索はAPI側が非対応のためクライアント側でフィルタ
-  if (query && !isCodeSearch) {
+  let matched;
+  if (!query) {
+    matched = all;
+  } else {
     const q = query.toLowerCase();
-    products = products.filter(p =>
-      (p.productName || '').toLowerCase().includes(q) ||
-      (p.productCode || '').includes(q) ||
-      (p.groupCode || '').includes(q)
+    matched = all.filter(p =>
+      p.productName.toLowerCase().includes(q) ||
+      p.janCode.includes(q)
     );
   }
 
-  // レスポンスヘッダーからページネーション情報を取得
-  const linkHeader = res.headers.get('link');
-  const totalCount = products.length;
+  const start = (page - 1) * limit;
+  const paged = matched.slice(start, start + limit);
 
   return {
-    products: products.map(normalizeProduct),
-    totalCount,
+    products: paged,
+    totalCount: matched.length,
   };
 }
 

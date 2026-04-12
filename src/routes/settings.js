@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { getPublicConfig, saveConfig, getConfig } from '../config.js';
 import { clearTokenCache } from '../smaregi/auth.js';
+import { clearProductCache } from '../smaregi/client.js';
 import { requirePin } from '../middleware/auth.js';
 import { PRINTER_MODELS } from '../printer/profiles.js';
 
@@ -117,9 +118,10 @@ router.post('/', requirePin, (req, res, next) => {
 
     saveConfig(updates);
 
-    // スマレジ認証情報が変わった場合はトークンキャッシュをクリア
+    // スマレジ認証情報が変わった場合��トークン・商品キャッシュをクリア
     if (updates.smaregiContractId || updates.smaregiClientId || updates.smaregiClientSecret) {
       clearTokenCache();
+      clearProductCache();
     }
 
     res.json({ ok: true, config: getPublicConfig() });

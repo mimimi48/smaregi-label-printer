@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { searchProducts } from '../smaregi/client.js';
+import { searchProducts, clearProductCache } from '../smaregi/client.js';
 
 const router = Router();
 
@@ -19,6 +19,20 @@ router.get('/', async (req, res, next) => {
       totalCount: result.totalCount,
       page,
     });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * POST /api/products/refresh
+ * 商品マスタキャッシュをクリアして再取得
+ */
+router.post('/refresh', async (req, res, next) => {
+  try {
+    clearProductCache();
+    const result = await searchProducts('', { page: 1 });
+    res.json({ ok: true, totalCount: result.totalCount });
   } catch (err) {
     next(err);
   }

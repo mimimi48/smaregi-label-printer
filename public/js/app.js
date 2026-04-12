@@ -1,4 +1,4 @@
-import { searchProducts, printLabels, getPrinterStatus, getPreviewUrl, getSettings, saveSettings, discoverPrinters, setStoredPin } from './api.js';
+import { searchProducts, refreshProducts, printLabels, getPrinterStatus, getPreviewUrl, getSettings, saveSettings, discoverPrinters, setStoredPin } from './api.js';
 
 // ── State ──
 
@@ -42,6 +42,30 @@ $$('.nav-btn').forEach((btn) => {
     $$('.nav-btn').forEach((b) => b.classList.remove('active'));
     btn.classList.add('active');
   });
+});
+
+// ── Refresh Products ──
+
+const refreshBtn = $('#refreshBtn');
+
+refreshBtn.addEventListener('click', async () => {
+  refreshBtn.disabled = true;
+  refreshBtn.style.opacity = '0.5';
+  try {
+    const result = await refreshProducts();
+    showToast(`商品マスタを更新しました (${result.totalCount}件)`);
+    // 検索中なら再検索
+    if (searchQuery) {
+      searchPage = 1;
+      productList.innerHTML = '';
+      performSearch();
+    }
+  } catch (err) {
+    showToast(`更新エラー: ${err.message}`, true);
+  } finally {
+    refreshBtn.disabled = false;
+    refreshBtn.style.opacity = '';
+  }
 });
 
 // ── Barcode Scanner ──
@@ -148,38 +172,70 @@ function createProductCard(product) {
   const card = document.createElement('div');
   card.className = 'product-card';
 
-  const inQueue = queue.some((q) => q.janCode === product.janCode);
+  const existing = queue.find((q) => q.janCode === product.janCode);
+  const currentQty = existing ? existing.quantity : 0;
 
   card.innerHTML = `
     <div class="product-info">
       <div class="product-name">${escapeHtml(product.productName)}</div>
       <div class="product-jan">${escapeHtml(product.janCode)}</div>
     </div>
-    <div class="product-actions">
-      <button class="btn-add ${inQueue ? 'added' : ''}" data-jan="${escapeHtml(product.janCode)}">
-        ${inQueue ? '&#10003;' : '+'}
-      </button>
+    <div class="quantity-control compact">
+      <button class="qty-minus">&minus;</button>
+      <span class="quantity-value">${currentQty}</span>
+      <button class="qty-plus">+</button>
     </div>
   `;
+
+  const qtyValue = card.querySelector('.quantity-value');
+  const minusBtn = card.querySelector('.qty-minus');
+  const plusBtn = card.querySelector('.qty-plus');
+
+  function updateQty(delta) {
+    const cur = parseInt(qtyValue.textContent, 10);
+    const next = Math.max(0, cur + delta);
+    qtyValue.textContent = next;
+    setQueueQuantity(product, next);
+  }
+
+  minusBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    updateQty(-1);
+  });
+
+  plusBtn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    updateQty(1);
+  });
 
   // プレビュー（カード本体タップ）
   card.querySelector('.product-info').addEventListener('click', () => {
     showPreview(product.productName, product.janCode);
   });
 
-  // キューに追加（+ボタン）
-  card.querySelector('.btn-add').addEventListener('click', (e) => {
-    e.stopPropagation();
-    addToQueue(product);
-    const btn = card.querySelector('.btn-add');
-    btn.classList.add('added');
-    btn.innerHTML = '&#10003;';
-  });
-
   return card;
 }
 
 // ── Queue ──
+
+/**
+ * キュー内の商品の数量を設定する。0なら削除。
+ */
+function setQueueQuantity(product, quantity) {
+  const idx = queue.findIndex((q) => q.janCode === product.janCode);
+  if (quantity <= 0) {
+    if (idx !== -1) queue.splice(idx, 1);
+  } else if (idx !== -1) {
+    queue[idx].quantity = quantity;
+  } else {
+    queue.push({
+      productName: product.productName,
+      janCode: product.janCode,
+      quantity,
+    });
+  }
+  renderQueue();
+}
 
 function addToQueue(product) {
   const existing = queue.find((q) => q.janCode === product.janCode);
@@ -193,7 +249,6 @@ function addToQueue(product) {
     });
   }
   renderQueue();
-  showToast('キューに追加しました');
 }
 
 function renderQueue() {
@@ -267,11 +322,17 @@ clearQueueBtn.addEventListener('click', () => {
 
 // ── Print ──
 
-printAllBtn.addEventListener('click', async () => {
-  if (queue.length === 0) return;
+/**
+ * 任意のアイテムリストを印刷する共通関数
+ * @param {Array} items - 印刷するアイテム配列
+ * @param {object} options
+ * @param {boolean} options.clearQueue - 印刷成功後にキューをクリアするか
+ */
+async function printItems(items, { clearQueue: shouldClearQueue = false } = {}) {
+  if (items.length === 0) return;
 
   if (printerConnectionType === 'airprint') {
-    await printWithAirPrint(queue);
+    await printWithAirPrint(items);
     return;
   }
 
@@ -280,25 +341,23 @@ printAllBtn.addEventListener('click', async () => {
     return;
   }
 
-  await printViaTcp();
-});
-
-async function printViaTcp() {
   printingOverlay.hidden = false;
-  const total = queue.reduce((sum, item) => sum + item.quantity, 0);
+  const total = items.reduce((sum, item) => sum + item.quantity, 0);
   printingStatus.textContent = `印刷中… (${total}枚)`;
 
   try {
-    const result = await printLabels(queue);
+    const result = await printLabels(items);
 
     if (result.failed > 0) {
       showToast(`${result.printed}枚印刷 / ${result.failed}件エラー`, true);
     } else {
       showToast(`${result.printed}枚の印刷が完了しました`);
       vibrate([100]);
-      saveToHistory(queue);
-      queue = [];
-      renderQueue();
+      saveToHistory(items);
+      if (shouldClearQueue) {
+        queue = [];
+        renderQueue();
+      }
     }
   } catch (err) {
     showToast(`印刷エラー: ${err.message}`, true);
@@ -307,6 +366,10 @@ async function printViaTcp() {
     printingOverlay.hidden = true;
   }
 }
+
+printAllBtn.addEventListener('click', () => {
+  printItems(queue, { clearQueue: true });
+});
 
 async function printWithAirPrint(items) {
   printingOverlay.hidden = false;
@@ -698,6 +761,277 @@ function loadQueue() {
     return [];
   }
 }
+
+// ── Templates ──
+
+const TEMPLATE_KEY = 'label-print-templates';
+const templateList = $('#templateList');
+const templateBadge = $('#templateBadge');
+const newTemplateBtn = $('#newTemplateBtn');
+const backToTemplatesBtn = $('#backToTemplatesBtn');
+const saveTemplateBtn = $('#saveTemplateBtn');
+const templateNameInput = $('#templateNameInput');
+const templateSearchInput = $('#templateSearchInput');
+const templateSearchResults = $('#templateSearchResults');
+const templateEditList = $('#templateEditList');
+const templateEditView = $('#templateEditView');
+const templateView = $('#templateView');
+
+let editingTemplateId = null;
+let editingTemplateItems = [];
+
+function loadTemplates() {
+  try {
+    return JSON.parse(localStorage.getItem(TEMPLATE_KEY) || '[]');
+  } catch {
+    return [];
+  }
+}
+
+function persistTemplates(templates) {
+  try { localStorage.setItem(TEMPLATE_KEY, JSON.stringify(templates)); } catch { /* quota exceeded */ }
+}
+
+// ── テンプレート一覧 ──
+
+function renderTemplates() {
+  const templates = loadTemplates();
+
+  if (templates.length === 0) {
+    templateBadge.hidden = true;
+    templateList.innerHTML = '<p class="empty-message">テンプレートがありません</p>';
+    return;
+  }
+
+  templateBadge.hidden = false;
+  templateBadge.textContent = templates.length;
+
+  templateList.innerHTML = '';
+  templates.forEach((tpl, index) => {
+    const total = tpl.items.reduce((sum, item) => sum + item.quantity, 0);
+    const card = document.createElement('div');
+    card.className = 'template-card';
+
+    card.innerHTML = `
+      <div class="template-card-header">
+        <div class="template-card-info">
+          <div class="template-card-name">${escapeHtml(tpl.name)}</div>
+          <div class="template-card-meta">${tpl.items.length}商品</div>
+        </div>
+        <div class="template-card-actions">
+          <button class="btn-icon" data-action="edit" aria-label="編集" title="編集">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/>
+              <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
+            </svg>
+          </button>
+          <button class="btn-icon danger" data-action="delete" aria-label="削除" title="削除">
+            <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/>
+              <path d="M10 11v6M14 11v6"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+      <div class="template-card-items" hidden></div>
+    `;
+
+    const itemsContainer = card.querySelector('.template-card-items');
+
+    // 各商品を数量カウンター付きカードとして描画
+    tpl.items.forEach((item) => {
+      const row = createProductCard({ productName: item.productName, janCode: item.janCode });
+      row.style.boxShadow = 'none';
+      row.style.borderBottom = '1px solid var(--color-border)';
+      row.style.borderRadius = '0';
+      itemsContainer.appendChild(row);
+    });
+
+    // 展開/折りたたみ
+    card.querySelector('.template-card-info').addEventListener('click', () => {
+      itemsContainer.hidden = !itemsContainer.hidden;
+    });
+
+    // 編集
+    card.querySelector('[data-action="edit"]').addEventListener('click', (e) => {
+      e.stopPropagation();
+      openTemplateEditor(tpl);
+    });
+
+    // 削除
+    card.querySelector('[data-action="delete"]').addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (!confirm(`「${tpl.name}」を削除しますか？`)) return;
+      const templates = loadTemplates();
+      templates.splice(index, 1);
+      persistTemplates(templates);
+      renderTemplates();
+      showToast('テンプレートを削除しました');
+    });
+
+    templateList.appendChild(card);
+  });
+}
+
+// ── テンプレート編集 ──
+
+newTemplateBtn.addEventListener('click', () => {
+  openTemplateEditor(null);
+});
+
+
+
+function openTemplateEditor(tpl) {
+  editingTemplateId = tpl ? tpl.id : null;
+  editingTemplateItems = tpl ? tpl.items.map(item => ({ ...item })) : [];
+  templateNameInput.value = tpl ? tpl.name : '';
+  templateSearchInput.value = '';
+  templateSearchResults.innerHTML = '';
+
+  // 一覧を隠して編集画面を表示
+  $$('.view').forEach((v) => v.classList.remove('active'));
+  templateEditView.classList.add('active');
+  // ナビのアクティブ状態を維持
+  $$('.nav-btn').forEach((b) => b.classList.remove('active'));
+  $('[data-view="templateView"]').classList.add('active');
+
+  renderTemplateEditItems();
+  templateNameInput.focus();
+}
+
+backToTemplatesBtn.addEventListener('click', () => {
+  $$('.view').forEach((v) => v.classList.remove('active'));
+  templateView.classList.add('active');
+});
+
+saveTemplateBtn.addEventListener('click', () => {
+  const name = templateNameInput.value.trim();
+  if (!name) {
+    showToast('テンプレート名を入力してください', true);
+    templateNameInput.focus();
+    return;
+  }
+  if (editingTemplateItems.length === 0) {
+    showToast('商品を追加してください', true);
+    templateSearchInput.focus();
+    return;
+  }
+
+  const templates = loadTemplates();
+
+  if (editingTemplateId) {
+    const idx = templates.findIndex(t => t.id === editingTemplateId);
+    if (idx !== -1) {
+      templates[idx].name = name;
+      templates[idx].items = editingTemplateItems.map(item => ({ ...item }));
+    }
+  } else {
+    templates.unshift({
+      id: Date.now().toString(36),
+      name,
+      items: editingTemplateItems.map(item => ({ ...item })),
+    });
+  }
+
+  persistTemplates(templates);
+  renderTemplates();
+
+  // 一覧に戻る
+  $$('.view').forEach((v) => v.classList.remove('active'));
+  templateView.classList.add('active');
+  showToast('テンプレートを保存しました');
+});
+
+// テンプレート編集画面の検索
+let tplDebounceTimer;
+
+templateSearchInput.addEventListener('input', () => {
+  clearTimeout(tplDebounceTimer);
+  tplDebounceTimer = setTimeout(async () => {
+    const q = templateSearchInput.value.trim();
+    if (!q) {
+      templateSearchResults.innerHTML = '';
+      return;
+    }
+    try {
+      const result = await searchProducts(q, 1);
+      templateSearchResults.innerHTML = '';
+      if (result.products.length === 0) {
+        templateSearchResults.innerHTML = '<p class="empty-message">商品が見つかりません</p>';
+        return;
+      }
+      result.products.forEach((product) => {
+        templateSearchResults.appendChild(createTemplateProductCard(product));
+      });
+    } catch (err) {
+      templateSearchResults.innerHTML = '';
+    }
+  }, 400);
+});
+
+function createTemplateProductCard(product) {
+  const card = document.createElement('div');
+  card.className = 'product-card';
+
+  const inTemplate = editingTemplateItems.some(item => item.janCode === product.janCode);
+
+  card.innerHTML = `
+    <div class="product-info">
+      <div class="product-name">${escapeHtml(product.productName)}</div>
+      <div class="product-jan">${escapeHtml(product.janCode)}</div>
+    </div>
+    <button class="btn btn-primary btn-sm tpl-add-btn" ${inTemplate ? 'disabled' : ''}>${inTemplate ? '追加済' : '追加'}</button>
+  `;
+
+  card.querySelector('.tpl-add-btn').addEventListener('click', (e) => {
+    e.stopPropagation();
+    const existing = editingTemplateItems.find(item => item.janCode === product.janCode);
+    if (!existing) {
+      editingTemplateItems.push({
+        productName: product.productName,
+        janCode: product.janCode,
+        quantity: 1,
+      });
+      renderTemplateEditItems();
+    }
+    const btn = card.querySelector('.tpl-add-btn');
+    btn.disabled = true;
+    btn.textContent = '追加済';
+    showToast('追加しました');
+  });
+
+  return card;
+}
+
+function renderTemplateEditItems() {
+  if (editingTemplateItems.length === 0) {
+    templateEditList.innerHTML = '<p class="empty-message">商品を検索して追加してください</p>';
+    return;
+  }
+
+  templateEditList.innerHTML = '';
+  editingTemplateItems.forEach((item, i) => {
+    const row = document.createElement('div');
+    row.className = 'queue-item';
+    row.innerHTML = `
+      <div class="queue-item-info">
+        <div class="queue-item-name">${escapeHtml(item.productName)}</div>
+        <div class="queue-item-jan">${escapeHtml(item.janCode)}</div>
+      </div>
+      <button class="btn-remove">&times;</button>
+    `;
+
+    row.querySelector('.btn-remove').addEventListener('click', () => {
+      editingTemplateItems.splice(i, 1);
+      renderTemplateEditItems();
+    });
+
+    templateEditList.appendChild(row);
+  });
+}
+
+// 初期描画
+renderTemplates();
 
 // 初期表示で履歴を表示
 showHistory();
